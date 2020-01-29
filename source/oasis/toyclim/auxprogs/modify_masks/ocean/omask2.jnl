@@ -1,0 +1,10 @@
+! NOAA/PMEL TMAP
+! Program FERRET  
+! Version 5.22 - 07/27/00
+! 19-Apr-06 09:27     
+
+define axis/x=1:359:2 xhad
+define axis/x=-88:88:2 yhad
+define grid/x=xhad/y=yhad ghad
+file/var=omask/grid=ghad fort.20
+shade omask; go land

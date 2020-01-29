@@ -1,0 +1,153 @@
+# This is a typical input file for OASIS 2.3.  Don't hesitate to ask
+# precisions or make suggestions (oasishelp@cerfacs.fr). 
+# The OASIS I/O routines decrypt the file without
+# namelist or specific format. Any line beginning with # is ignored.
+#
+ $SEQMODE
+# This has to do with the time strategy. If you have all the models
+# running simultaneously, you must put 1.
+# Otherwise, if you have n models running sequentially, you put n
+#
+              1
+ $END
+#########################################################################
+ $MACHINE
+# This describes the type of machine you run OASIS on.
+# - if it is a cray, put CRAY
+# - if it is a workstation, put IEEE
+#
+                CRAY
+ $END
+#########################################################################
+ $CHANNEL
+# This describes the type of message passing you want to use.
+# - if you use named pipes + binary files (for synchro and data respectively)
+#   you must write PIPE
+# - if you use sockets for both synchro. and data (use of the Cerfacs library
+#   CLIM based on PVM3.3), you must write CLIM
+# - If you use system V shared memory segments and semaphores (for data and
+#   synchro respectively), you must write SIPC
+# - If you use OASIS as just an interpolator (i.e no models), you
+#   must write NONE (furthermore you need to set NBMODEL to 0)
+#
+                PIPE               
+ $END
+#########################################################################
+ $NFIELDS
+# This is the total number of fields being exchanged. In this case,
+# for a test experiment, I limit myself to the exchange of 2 
+# fields, sst and heat fluxes
+             2
+ $END
+#########################################################################
+ $JOBNAME
+# This is just descriptive, it is an acronym for this given simulation
+#
+   JR1
+ $END
+##########################################################################
+ $NBMODEL
+# This gives you the number of models running in this experiment +
+# their names. If $CHANNEL=SIPC, the model names have to have 6 characters.
+#
+  2  toyatm toyoce
+ $END
+###########################################################################
+ $RUNTIME
+# This gives you the total simulated time for this run in seconds (here 2 days)
+#
+   172800
+ $END
+###########################################################################
+ $INIDATE
+# This is the initial date of the run. It is regularly updated by the
+# program. This is important if we need to complete
+# the sst data coming from a Pacific OGCM with climatological data
+# of the right date.
+#
+  20050901
+ $END
+###########################################################################
+ $MODINFO
+# Indicates if a header must be encapsulated within the field brick
+    NOT
+ $END
+###########################################################################
+ $NLOGPRT
+# Index of printing level in output file cplout: 0 = no printing
+#  1 = main routines and field names when treated, 2 = complete output
+ 2
+ $END
+###########################################################################
+#
+#
+# The above variables are the general parameters for the experiment.
+# Everything below has to do with the fields being exchanged
+# For each field, the first 2 lines are descriptors of the field, the
+# related grid, the related model and data files. The third line 
+# indicates the decomposition strategy for $CHANNEL=CLIM.
+# The next line gives the list of analysis to be performed  and the
+# following lines give specific parameters  for each analysis.
+# See the OASIS manual for detailed description of the analysis
+#
+############################################################################
+ $STRINGS
+# fields definition
+# Field 1 : sea surface temperature
+# --------------------------------------------------------------------------
+#   First line:
+# 1) and 2) Symbolic names for the field before and after interpolation
+#           (must not exceed 8 characters)
+# 3) Label number for internal oasis output
+# 4) Exchange frequency for the field in seconds (here 1 day)
+# 5) Number of analysis to be performed (here 3)
+# 6) 7) 8) and 9) file names + related unit numbers for data transfer
+# These four are relevant only if one uses the PIPE technique
+#10) Flag indicating if the field has to be exported towards another model
+#   (EXPORTED = Yes, AUXILARY = No)
+#
+SSTOCE SSTATM 1 86400  3  fisstoce fisstatm 21  51  EXPORTED
+# --------------------------------------------------------------------------
+#   Second line:
+# 1) 2) 3) and 4) Number of long. and lat. on initial and final grids
+# 5) and 6) acronyms used to locate the relevant grid data in the global
+#           grid files
+# 7) Sequential index of the related model. If the SEQMODE input is > 1,
+#    then one needs to say here if the model generating the initial field
+#    is in sequential position n.
+# 8) Initialization flag: this is used to delay the start of one model
+#    in the case of parallel models. Useful if one wants to initialize
+#    the coupled system only with sst data.
+# 9) Flag to compute an extra timestep at the end (1 yes, 0 no)
+# 10) Flag to compute the field integral on both grids (1 yes, 0 no)
+#
+5  7   5   7   ssto   ssta     1    0    0    0
+# --------------------------------------------------------------------------
+#   Third line:
+# 1) 2) characteristic in longitude of the source grid (`P' for periodical 
+#       or `R' for regional, and the number of overlapping grid points
+#       -enter `0' for regional grid)
+# 3) 4) characteristic in longitude of the target grid
+R  0  R  0
+# --------------------------------------------------------------------------
+#   Fourth line (for $CHANNEL=CLIM only):
+# Indicates the decomposition strategy: SERIAL(none), ORANGE, APPLE or BOX
+# SERIAL
+#
+# List of analysis
+# 
+CHECKIN NOINTERP CHECKOUT  
+#
+############################################################################   
+#
+# Field 2 : heat flux
+#
+HFLXATM  HFLXOCE  5   86400  3  fihfatm fihfoce  41   31   EXPORTED
+5    7    5    7    hfa    hfo   1     0       0      0
+#
+# List of analysis
+#
+CHECKIN NOINTERP CHECKOUT
+#
+############################################################################
+ $END

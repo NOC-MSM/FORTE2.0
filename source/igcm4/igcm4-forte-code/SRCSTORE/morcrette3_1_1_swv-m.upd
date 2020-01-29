@@ -1,0 +1,238 @@
+*/ =======================================================
+*/ Update deck for replacing the Nikos radiation scheme with Morcrette
+*/ scheme in the igcm3.1. See morcrette3_1_1.readme for details.
+*/
+*/ Replace nikos radn by morcrette, Piers' Update, 18. May 2001
+*/ =======================================================
+*ID REPLNIKOS
+*PURGEDK NIKOS
+*PURGEDK RADSW
+*PURGEDK CLDTRN
+*PURGEDK DEDD
+*PURGEDK SW
+*PURGEDK SWTT
+*PURGEDK IRRAD
+*READ  ../igcm4-forte-code/SRCSTORE/zparb.upd
+*READ  ../igcm4-forte-code/SRCSTORE/zmorc-m.f
+*D MORC.410,411
+*/ Remove the lines:
+*/               call nikosrad(pr,t,h2o,o3,alat1,htlw,htsw,DOY,cf,ic,
+*/     &              fluxes,swalb,alon)
+               call morcigcm(pr,t,h2o,o3,alat1,htlw,htsw,DOY,cf,ic,
+     &              fluxes,swalb,alon)
+*/-------------------------------------------------------------
+*/ 1) Allows to read gas mixing ratio values needed
+*/ by the morcrette scheme from the deck namelist INMORCGAS
+*/ M. Bourqui Sept. 2001
+*/ 2) Make the stratospheric water vapour available in namelist
+*/ and reduce default value to 3.0ppmv
+*/ 3) Bug fix for surface albedo and year length inconsistency
+*/ 4) Clean redundancy in defining the value of solar constant
+*/ SOLC.
+*/ M. Bourqui 15 Nov. 2001
+*/
+*/ First define the common block MORCGAS
+*COMDECK MORCGAS
+!-----------------------------------------------------
+! Common block for gas abundances
+!-----------------------------------------------------
+      COMMON/MORCGAS/VMRCO2,ZCARDI,VMRCH4,RCH4,VMRN2O,RN2O,
+     &               VMRCFC11,RCFC11,VMRCFC12,RCFC12,
+     &               VMRH2OS,RH2OS,NEXOTIC
+      LOGICAL :: NEXOTIC
+      REAL :: ZCARDI,RCH4,RN2O,RCFC11,RCFC12,RH2OS
+      REAL :: VMRCO2,VMRCH4,VMRN2O,VMRCFC11,VMRCFC12,VMRH2OS
+*IDENT UPDMORCMB
+*/ Then clean the old obsolete namelist
+*PURGEDK RADLW
+*D DOC.240
+*/ Remove the line:
+*/!  RADLW      RADLW      Switches and arrays for LW radiation scheme.
+*D PARRAY.8,9
+*/ Remove the lines:
+*/! Maximum number of gases
+*/      INTEGER, PARAMETER :: MXGAS=8
+*/ ---------------------------------------
+*/ Add the COMMON BLOCK MORCGAS where needed
+*/ ---------------------------------------
+*I ZMORC.62
+C     COMMON BLOCK FOR GAS ABUNDANCES
+*CALL MORCGAS
+*I LW.83
+C     COMMON BLOCK FOR GAS ABUNDANCES
+*CALL MORCGAS
+*I LWTT0.6
+C     COMMON BLOCK FOR GAS ABUNDANCES
+*CALL MORCGAS
+*I LWTT1.6
+C     COMMON BLOCK FOR GAS ABUNDANCES
+*CALL MORCGAS
+*B MORC.32
+*/ Insert before:
+*/!-----------------------------------------------------
+*/! Passed arguments
+*CALL MORCGAS
+*/ ---------------------------------------
+*/ Modifications to INIPHYS
+*/ ---------------------------------------
+*B INIPHYS.27
+*/ Lines below want to come before the definition of local variables
+      REAL :: ZAIRMWG, ZCO2MWG, ZCH4MWG
+      REAL :: ZN2OMWG, ZC11MWG, ZC12MWG
+      REAL :: ZH2OMWG
+*CALL MORCGAS
+*I INIPHYS.28
+*/ The lines below should follow
+*/       INTEGER :: IHEM, J, L
+!-----------------------------------------------------
+! Data values
+!-----------------------------------------------------
+      DATA ZAIRMWG/28.970/
+      DATA ZCO2MWG/44.011/
+      DATA ZCH4MWG/16.043/
+      DATA ZN2OMWG/44.013/
+      DATA ZC11MWG/137.3686/
+      DATA ZC12MWG/120.9140/
+      DATA ZH2OMWG/18.015/
+*/ Add the definition of the new namelist in the
+*/ initialisation subroutine INIPHYS, define default
+*/ values for the gas abundances, read the namelist,
+*/ effectue vmr->mmr transformations.
+*B INIPHYS.38
+*/ Lines below should come before the format statements
+      NAMELIST/INMORCGAS/VMRCO2,VMRCH4,VMRN2O,
+     &              VMRCFC11,VMRCFC12,VMRH2OS,NEXOTIC
+*B INIPHYS.98
+*/ Lines below should come before the section on 
+*/ 'Initialise parameters for physical processes'
+!-----------------------------------------------------
+! PRESET DEFAULT GAS Vol. Mix. Ratios
+!
+! IPCC/SACC VALUES FOR 1990:
+!  VMRCO2: 353.93E-6, VMRCH4: 1.717E-6, VMRN2O: 309.68E-6
+!  VMRCFC11: 280.0E-12, VMRCFC12: 484.4E-12
+!  VMRH2OS = stratospheric water vapour abundance
+!          3-6E-6 (IPCC/TACC value for 1998)
+!-----------------------------------------------------
+      VMRCO2=353.9E-6
+      VMRCH4=1.717E-06
+      VMRN2O=309.7E-09
+      VMRCFC11=280.0E-12
+      VMRCFC12=484.4E-12
+      VMRH2OS=3.0E-6
+      NEXOTIC=.FALSE.
+*B INIPHYS.308
+*/ These lines should come before the return statement
+!-----------------------------------------------------
+! READ NAMELIST INMORCGAS AND CONVERT VMR->MMR
+! M. Bourqui Nov. 2001
+! Read in namelist
+!-----------------------------------------------------
+      IF (MyPe.EQ.0) THEN
+         READ (7,INMORCGAS)
+         WRITE(2,INMORCGAS)
+      ENDIF
+      IF (NPE.GT.1) THEN
+         !-----------------------------------------------------
+         ! Pass informations from PE 0 to other PEs
+         !-----------------------------------------------------
+         iSend=0
+         nBuffSize=1
+         CALL MPI_BCAST(VMRCO2,nBuffSize,ParaReal,iSend,
+     &        MPI_COMM_WORLD,ierr)
+         CALL MPI_BCAST(VMRCH4,nBuffSize,ParaReal,iSend,
+     &        MPI_COMM_WORLD,ierr)
+         CALL MPI_BCAST(VMRN2O,nBuffSize,ParaReal,iSend,
+     &        MPI_COMM_WORLD,ierr)
+         CALL MPI_BCAST(VMRCFC11,nBuffSize,ParaReal,iSend,
+     &        MPI_COMM_WORLD,ierr)
+         CALL MPI_BCAST(VMRCFC12,nBuffSize,ParaReal,iSend,
+     &        MPI_COMM_WORLD,ierr)
+         CALL MPI_BCAST(VMRH2OS,nBuffSize,ParaReal,iSend,
+     &        MPI_COMM_WORLD,ierr)
+         CALL MPI_BCAST(NEXOTIC,nBuffSize,ParaInt,iSend,
+     &        MPI_COMM_WORLD,ierr)
+      ENDIF
+
+      ZCARDI  = VMRCO2*ZCO2MWG/ZAIRMWG
+      RCH4    = VMRCH4*ZCH4MWG/ZAIRMWG
+      RN2O    = VMRN2O*ZN2OMWG/ZAIRMWG
+      RCFC11  = VMRCFC11*ZC11MWG/ZAIRMWG
+      RCFC12  = VMRCFC12*ZC12MWG/ZAIRMWG
+      RH2OS   = VMRH2OS*ZH2OMWG/ZAIRMWG
+*/ Clean the hardwires
+*D ZMORC.168,173
+C
+C     ZCARDI is the concentration of CO2 in mass mix. ratio
+C
+*D LW.86,100
+C
+C     Concentration of the various trace gases
+C     now entered in INIPHYS, Namelist INMORCGAS.
+C     M. Bourqui Nov. 2001.
+C
+*D LWTT0.215,216
+*/ Remove the lines:
+*/      NEXOTIC=0
+*/      IF (NEXOTIC.EQ.1) THEN
+      IF (NEXOTIC) THEN
+*D LWTT1.212,213
+      IF (NEXOTIC) THEN
+*I MORC.105
+*/ Insert after the line:
+*/      REAL :: HTNETO
+      REAL :: ACCON
+      REAL :: BCCON
+      REAL :: CH4BETA
+*D MORC.322
+*/ Replace the line:
+*/                     h2o(L)=MAX(6.0E-6,h2o(L))
+                     !---------------------------------------------
+                     ! FIX WATER VAPOUR FOR LEVELS ABOVE CLIMATOLOGICAL 
+                     ! TROPOPAUSE TO VALUE OF RH2OS. M. Bourqui Nov. 
+                     ! 2001- fix to MMR- MMJ Jul 08
+                     !---------------------------------------------
+                     H2O(L)=MAX(RH2OS,H2O(L))
+*D MORC.328,329
+*/ Remove the lines
+*/                        ! Remove following line if no fix required
+*/                        h2o(L)=6.0E-6
+                        !---------------------------------------------
+                        ! Add methane oxidation term onto minimum water
+                        ! From the calculations of Stefan Fueglistahler
+                        !---------------------------------------------
+                        accon=1.5-0.9*(CS(JJ1(iRow)+JH,IHEM)**3)
+                        bccon=0.9+0.2*(CS(JJ1(iRow)+JH,IHEM)**3)
+                        CH4BETA =0.46*(1.0+
+     &                       tanh((accon-log10(pr(l)/1.0e2))*bccon))
+                        H2O(L)=RH2OS+VMRCH4*CH4BETA*2.*18./29.
+*D MORC.335
+*/ Remove the line:
+*/                     h2o(L)=MAX(6.0E-6,TRAG3(I,IHEM,JH,LD,1))
+                     H2O(L)=MAX(RH2OS,TRAG3(I,IHEM,JH,LD,1))
+*D MORC.341
+*/ Remove the line:
+*/                        h2o(L)=6.0E-6
+                        !---------------------------------------------
+                        ! Add methane oxidation term onto minimum water
+                        ! From the calculations of Stefan Fueglistahler
+                        !---------------------------------------------
+                        accon=1.5-0.9*(CS(JJ1(iRow)+JH,IHEM)**3)
+                        bccon=0.9+0.2*(CS(JJ1(iRow)+JH,IHEM)**3)
+                        CH4BETA = 0.46*(1.0+
+     &                       tanh((accon-log10(pr(l)/1.0e2))*bccon))
+                        H2O(L)=RH2OS+VMRCH4*CH4BETA*2.*18./29.
+*/---------------------------------------------------------------
+*/ Fix bug concerning surface albedo
+*D ZMORC.360,366
+C     Bug fix: wrong lines of code removed. M. Bourqui 15 nov 2001
+*/ Fix bug concerning inconsistency in year length
+*D SOLANG.46
+C     Bug fix: year length made consistent with the remaining of
+C              code. M. Bourqui 15 nov 2001
+      YEARL=360.0
+*/ Clean redundant solar constant definition,
+*/ now the solar constant SOLC is entirely defined in INICON
+*D ZMORC.209
+C     Solar constant SOLC is now uniquely defined in INICON.
+C     M. Bourqui 15 nov 2001.

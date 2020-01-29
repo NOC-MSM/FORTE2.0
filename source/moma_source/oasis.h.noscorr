@@ -1,0 +1,30 @@
+c====================== include file "oasis.h" =========================
+#ifdef hcomments
+c23456789012345678901234567890123456789012345678901234567890123456789012
+c=======================================================================
+c
+c   variables used in coupling MOMA to the OASIS coupler
+c
+c======================================================================
+#endif
+      common/oafluxes/heatlat(imt,jmt), swlw(imt,jmt), water(imt,jmt)
+     $    ,sensible(imt,jmt)
+      common/oawinds/ztaux(imt,jmt), ztaux2(imt,jmt),
+     $   ztauy(imt,jmt), ztauy2(imt,jmt)
+      common/oasstoc/sstoc(imt,jmt)
+      real heatlat, swlw, water,sensible
+      real ztaux, ztaux2,ztauy, ztauy2
+
+c Ocean -> Oasis coupling fields
+      _MOMA_REAL
+     &    sstoc,
+     &    osstoc(imt-2*nhalo,jmt-2*(nhalo-1)),
+     &    osieoc(imt-2*nhalo,jmt-2*(nhalo-1)),
+     &    oheatlat(imt-2*nhalo,jmt-2*(nhalo-1)),
+     &    oswlw(imt-2*nhalo,jmt-2*(nhalo-1)),
+     &    owater(imt-2*nhalo,jmt-2*(nhalo-1)),
+     &    osensible(imt-2*nhalo,jmt-2*(nhalo-1)),
+     &    oztaux(imt-2*nhalo,jmt-2*(nhalo-1)),
+     &    oztaux2(imt-2*nhalo,jmt-2*(nhalo-1)),
+     &    oztauy(imt-2*nhalo,jmt-2*(nhalo-1)),
+     &    oztauy2(imt-2*nhalo,jmt-2*(nhalo-1))

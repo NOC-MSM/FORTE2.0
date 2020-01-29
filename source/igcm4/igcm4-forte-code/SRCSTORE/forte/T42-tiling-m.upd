@@ -1,0 +1,258 @@
+*IDENT OAS_TILE 
+*D INIPHYS.95,96
+      ITSLL=12.
+      ITSLO=12.
+
+*D BLSURF.370,371
+c     OCF=0.
+*B INISTR.44
+      REAL, ALLOCATABLE :: OFRACFULL(:,:,:)
+*I INISTR.410
+C Read ocean fraction file
+C MUST BE READ AS SAME AS OROG
+
+      if(mype .eq. 0)then
+
+      ALLOCATE(ofracfull(MG,NHEM,JG))
+      open(50,file='orogdata/ofrac.igcm3',status='old')
+      do j=1,jg
+      read(50,*)(ofracfull(i,1,j),i=1,mg)
+      end do
+      do j=jg,1,-1
+      read(50,*)(ofracfull(i,2,j),i=1,mg)
+      end do
+      close(50)
+      write(2,*) 'fractional land mask looks like:'
+      do j=1,jg
+         write (2,'(128I1)')(nint( 10.*ofracfull(i,1,j)  ) ,i=1,mg)
+      enddo
+      do j=jg,1,-1
+         write (2,'(128I1)')(nint( 10.*ofracfull(i,2,j)),i=1,mg)
+      enddo
+      endif     ! end MYPE if
+
+      ! Share OFRAC across PEs
+      CALL SHAREGRID(.TRUE.,MG,1,OFRACFULL,OFRAC)
+
+      if(mype .eq. 0) DEALLOCATE(ofracfull)
+      if(npe.gt.1)CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
+*/
+*/ Calculate BL tendencies over ocean part of coastal tile
+*/
+*I BLSURF.437
+C
+C COASTAL TILING CODE STARTS HERE
+C
+      if(GSG(I,IHEM,JH).ne.0..and.ofrac(I,IHEM,JH).gt.0.
+     $  .and.ofrac(I,IHEM,JH).lt.1.)then
+C
+C Calculate BL tendencies over ocean part of coastal tile
+C
+
+C        if(kount.gt.kstart+1)then
+        if(kount.gt.1)then
+          if(sicecov(i,ihem,jh).lt.0.5)then
+            tstaroo(I,IHEM,JH)=zsst_2d(I,IHEM,JH)*GASCON/CG
+          else
+C Ice cover- use IGCM Tsurf
+            tscurw=zsst_2d(I,IHEM,JH)*GASCON/CG
+C Relaxation to sea-ice base temp
+            oceaniceflux(I,IHEM)=(tscurw-max(TSTAROO(I,IHEM,JH),tm2))
+     $      *shco/restorice/tspd/DELT2C
+          endif
+C SVEGE array at coastal points is land so roughness length specified
+C from ocean points: used with VMPCD where Cd increases with windspeed
+          RGZ0O=SZLOOK(1)/2.2E4
+C Ice roughness length depends on ice cover, which depends on Tsurf
+          RGZ0=RGZ0O
+          if(tscur.le.tz)RGZ0=RGZ0IW
+          if(tscur.le.tm2)RGZ0=RGZ0IC
+        endif
+
+c Now do a single gridpoint   
+c Put sst's in here now, moved from SFCT
+
+C        TSCUR=TSTARO(I,IHEM,JH)
+        TSCUR=TSTAROO(I,IHEM,JH)
+
+        MAXITER=ITSLO
+        DELTU=DELTO
+        QNLGS=0.                                    
+        TNLGS=0.                                   
+        UNLGS=0.                                  
+        VNLGS=0.                                 
+        SHBLS=0.                                
+        SLBLS=0.                               
+        BLCDS=0.                              
+        BLVBS=0.                             
+        TXBLS=0.
+        TYBLS=0.
+
+        do iter=1,MAXITER
+
+c If we have interactive ocean, calculate surface humidities  
+
+C Surface winds used by coastal BL routine UGBSOCUR,VGBSOCUR are
+C atmospheric winds minus nondimensionalised surface current
+C Updated here since UGBSOC and VGBSOC are updated during ITER loop
+
+        UGBSOCUR=UGBSOC-zscur_2d(I,IHEM,JH)/SQRC/CV
+        VGBSOCUR=VGBSOC-mscur_2d(I,IHEM,JH)/SQRC/CV
+
+        qcur=pqsat(tscur)/PLG3(I,IHEM,JH)
+        sqcur=qcur
+C          THNL=1.02*TGBSOC/SKAP(NL)                            
+          THNL=1.00*TGBSOC/SKAP(NL)
+          THBAR=0.5*(THNL+TSCUR)                         
+          RZZ0=RSIGF*THBAR/RGZ0                         
+          RLZZ02=(LOG(RZZ0))**2                        
+
+c CALCULATE WIND SPEED, INCLUDING MINIMUM
+          VM=SQRT(RCSJ*(UGBSOCUR*UGBSOCUR+VGBSOCUR*VGBSOCUR))           
+          VMP=VM+BLVAD
+          VMPCD=MIN(VMP*CV,40.0)
+          CD=0.1681/RLZZ02
+
+C Ocean Cd=f(Z0)+f(VMP); Max Cd=0.003 at VMP=40m/s without ice cover
+C From Wu (1980) JPO v10 p727; assumes V(NL)~=(4/3)**V(10m)
+          if(sicecov(i,ihem,jh).lt.0.5)CD=CD+5.6E-5*VMPCD
+C
+          blcds=blcds+cd/real(maxiter)
+          CTAU=CD/TSCUR
+          CSH=CTAU/AKAP
+          DRAGJ=CD*DRAG/TSCUR
+c CALCULATE SURFACE STRESS AND LOWEST LEVEL FRICTION
+          CVM=DRAGJ*VMP
+          UNLGJNL=-CVM*UGBSOCUR
+          UNLGS=UNLGS+UNLGJNL/REAL(MAXITER)
+          VNLGJNL=-CVM*VGBSOCUR
+          VNLGS=VNLGS+VNLGJNL/REAL(MAXITER)
+          CVM=CTAU*PLG3(I,IHEM,JH)*VMP*SQRC
+          TXBLJ=CVM*UGBSOCUR
+          TXBLS=TXBLS+TXBLJ/REAL(MAXITER)
+          TYBLJ=CVM*VGBSOCUR
+          TYBLS=TYBLS+TYBLJ/REAL(MAXITER)
+c CALCULATE SENSIBLE AND LATENT HEAT FLUXES
+          QCUR=MIN(SQCUR,MAX(QCUR,QGBSOC))
+          DTH=TSCUR-THNL
+          DQ=BLRH*(QCUR-QGBSOC)
+          BLVB(I,IHEM)=0.
+
+C Enhancement of surface-air transfer when unstable
+C VMP=VM+5*BLVB should be VMP=VM+VM*BLVB from Forster et al 2000
+C 5.95*RLZZO2 = 1/Cd; RGZ0 includes a factor of g
+C Limit BLVB to 4*VM gustiness factor
+
+          IF (DTH.GT.0.)
+     $    BLVB(I,IHEM)=5.95*RLZZ02*SQRT(RGZ0*DTH/THBAR)
+          VMP=VM+VM*MIN(BLVB(I,IHEM)*CV,4.0)
+C Bug fix: add calculation of BLVBS
+          blvbs=blvbs+BLVB(I,IHEM)/real(maxiter)
+          CVM=0.2*DRAGJ*VMP                              
+          TNLGJNL=CVM*DTH                           
+          TNLGS=TNLGS+TNLGJNL/REAL(MAXITER)              
+          QNLGJNL=CVM*DQ                          
+          QNLGS=QNLGS+QNLGJNL/REAL(MAXITER)            
+          CVM=0.2*CSH*PLG3(I,IHEM,JH)*VMP                    
+          SHBLJ=CVM*DTH                        
+          SHBLS=SHBLS+SHBLJ/REAL(MAXITER)           
+c CHOOSE APPROPRIATE LATENT HEAT              
+          IF (TSCUR.GT.TZ) THEN             
+             SLBLJ=CVM*CTQ*DQ              
+          ELSE                            
+             SLBLJ=CVM*CTQI*DQ           
+          ENDIF                         
+          SLBLS=SLBLS+SLBLJ/REAL(MAXITER)    
+          UGBSOC=UGBSOC+DELTU*UNLGJNL 
+          VGBSOC=VGBSOC+DELTU*VNLGJNL                         
+          TGBSOC=TGBSOC+DELTU*TNLGJNL                        
+          QGBSOC=QGBSOC+DELTU*QNLGJNL
+
+          if (sicecov(i,ihem,jh).ge.0.5)then
+
+C SHCI constant: snow conductivity low
+C            hc=shci
+C     $         +log(tm2-tscur+1.0)*shci/log(tm2-ticesnow+1)
+C          elseif(tscur.gt.tm2.and.sicecov(i,ihem,jh).ge.0.5)then
+            hc=shci
+          else
+C Without ice heat capacity is that of ocean
+            hc=shco
+          endif
+
+c Do not add OCF term to ocean heat flux in coupled run
+          SFC=-shblj-slblj+(snet(I,IHEM,JH))/(CV*P0)         
+
+C Adding in oceaniceflux to coastal points 
+          dts = (sfc +oceaniceflux(I,IHEM))/hc*deltu
+
+C Start brine rejection bit- turned off
+C Below -2C ice thickness increases as Ts decreases.
+C Freshwater flux to ocean is calculated similarly to snowmelt:
+C F = F + water depth change ~= +0.1m per +1C in Tsurf change
+C Over a season	this should average to zero and	conserve water
+C                if(sicecov(I,IHEM,JH).gt.0.5)
+C     &          water2d(I,IHEM,JH)=water2d(I,IHEM,JH)+
+C     &          dts*CT*0.1*1000.0/RADEA
+C End Brine rejection bit
+
+        enddo
+
+C At end of iteration add to sea-ice fractional cover if Ts<TICEFORM
+C over a timescale of a day- avoids 2dT waves but synoptically short
+C Formulation allows for hysteresis
+        if(tscur.le.TICEFORM)
+     :  sicecov(I,IHEM,jh)=min(sicecov(I,IHEM,jh)+1.0/TSPD,1.0)
+C If Ts>0C remove ice over one day
+        if(tscur.gt.tz)
+     :  sicecov(I,IHEM,jh)=max(sicecov(I,IHEM,jh)-1.0/TSPD,0.0)
+C At icecap gridpoints coastal points sea-ice always present
+        if(SVEGE(I,IHEM,JH).EQ.2)
+     :  sicecov(I,IHEM,jh)=max(sicecov(I,IHEM,jh),0.5)
+*/
+*/ Coastal sea-ice and snow albedo weighted by OFRAC
+*/
+C Above 0C albedo based on ice cover
+        if(ofrac(I,IHEM,JH).gt.0.5)then
+          if(tscur.gt.TZ)then
+            salb(I,IHEM,jh)=sbal(i,ihem,jh)+
+     :      (salb(I,IHEM,jh)-sbal(i,ihem,jh))*sicecov(i,ihem,jh)
+C Below 0C, Albedo is MAX(present SALB,diagnosed SALB from sea-ice)
+C representing ice staying covered with snow until final melting
+          elseif(tscur.gt.TICEFORM.and.tscur.le.tz)then
+            salb(I,IHEM,jh)=max(sbal(i,ihem,jh)+
+     :      (saice-sbal(i,ihem,jh))*sicecov(i,ihem,jh),
+     :                      salb(I,IHEM,jh))
+C Below TICEFORM, Albedo is MAX(present SALB,diagnosed SALB from snow)
+C representing ice staying covered with snow until final melting
+          elseif(tscur.ge.TICESNOW.and.tscur.le.TICEFORM)then
+            salb(I,IHEM,jh)=max(sasnow+
+     :      (saice-sasnow)*(tscur-TICESNOW)/(TICEFORM-TICESNOW),
+     :                      salb(I,IHEM,jh))
+C Below TICESNOW ice completely snow-covered
+          else
+            salb(I,IHEM,jh)=sasnow
+          endif
+        endif
+C ice-free wind-based whitecaps and seasalt parameterisation
+C based on (U-Threshold)^3 (similar to dust raising)
+C EXPERIMENTAL AND TURNED OFF FOR NOW
+C          if(sicecov(i,ihem,jh).le.1.0e-5)salb(I,IHEM,jh)=
+C     :    min(sbal(i,ihem,jh)+max(0.0E-4*((VMPCD-5.0)**3),0.0),0.6)
+
+
+c End of iteration process, done full double timestep.
+c only update tstaro in IGCM if sea-ice
+        if (sicecov(I,IHEM,JH).ge.0.5) then
+          tstaroo(I,IHEM,jh)=tstarf(I,IHEM,jh)*(1.-2.*pnu)
+     $            +pnu*(tstaroo(I,IHEM,jh)+tscur)
+          tstarf(I,IHEM,jh)=tscur
+        else
+          tstarf(I,IHEM,jh)=tstaroo(I,IHEM,jh) 
+        end if
+
+        sqstarf(I,IHEM,jh)=sqcur
+        qstarf(I,IHEM,jh)=qcur
+
+      ENDIF
+C

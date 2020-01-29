@@ -1,0 +1,96 @@
+\begin{subsection}{Initialization}
+\label{subsec_initialization}
+
+The initialization process consists mainly in reading the input file
+{\em namcouple} (see \ref{subsec_input}), setting up the
+pseudo-dynamic allocation for all 
+grid-related fields, establishing the communication between OASIS 
+and the other models, and reading all the grid-related auxiliary data files. 
+Other tasks are defining logical unit numbers, opening I/O files, initializing
+the calendar and checking run parameter compatibility between GCMs and the 
+coupler.
+
+\vspace{0.4cm}
+
+The pseudo-dynamic memory allocation is set up in routine {\tt inidya}.
+Use of this technique is absolutely necessary to handle the modularity
+regarding the number of coupling fields. The concept relies on
+defining a list of macro arrays which sizes are defined through parameter
+statements. The list includes one array for the values of all initial
+fields, one for the values of all final fields,
+as well as one array for each grid-related parameter (longitudes,
+latitudes, masks and grid-mesh surface) corresponding to all initial
+or final fields. 
+To each coupling field, 
+we associate one address and one size (proportional to the associated
+grid dimensions) valid for all data (here ``data'' means either
+initial and final 
+field values, either initial and final field grid-related parameters,
+as defined above). For all subsequent analyses, all fields and
+their corresponding grid-related data are read in these macro arrays
+using addresses and sizes defined in routine {\tt inidya}.
+A check is performed in {\tt chkmem} to ensure that the cumulated size 
+of the coupling field arrays does not exceed the pre-defined dimension
+of the macro arrays. If it is the case,
+one needs to increase the value of parameters jpmxold and/or jpmxnew and/or 
+jpmax (see \ref{subsec_parameters}) and then to recompile the code.
+
+\vspace{0.4cm}
+
+
+The routine {\tt inicmc} initializes the communication between OASIS 
+and the models, using either the PIPE, CLIM, SIPC or GMEM technique. In the 
+PIPE/SIPC/GMEM techniques, after specific actions regarding signal handling
+(see \ref{subsubsec_process}), all required 
+named CRAY pipes/shared or global memory pools are opened. In the CLIM 
+technique, miscellaneous initializations inherent to the PVM message passing 
+library are first realized. In the GMEM case, initialization of the
+Message Passing Interface (MPI) (attachment to the MPI daemon) is
+performed in order to use the global memory facility.
+Then, in all four techniques, an exchange
+of initial information is performed.
+From each model, OASIS receives 
+the total number of timesteps, the smallest coupling frequency, 
+the duration of one timestep, and
+the Process IDentificator (PID). In return, OASIS gives the following
+informations to each model: its total time of run, its total number
+of timestep, the duration of one of its timestep, and its PID.
+Some checks are then performed by the {\tt chkpar} routine to verify the
+run parameter compatibility between the models and the coupler.
+
+\vspace{0.4cm}
+
+Table \ref{tab.init} describes the different routines involved in the
+initialization.
+\begin{table}[hbtp]
+\begin{center}
+\begin{tabular}{|l|l|}
+\hline
+Routine name & Description \\
+\hline
+\hline
+\multicolumn{2}{|c|}{Initialization Process} \\
+\hline
+{\tt blkdata }& Block data routine, define default values  \\
+ & and initialize constant basic variables. \\
+{\tt chkmem  }& Check size of dynamic allocation \\
+ & with respect to the available memory. \\
+{\tt chkpar }& Check run parameter compatibility \\
+ & between GCMs and coupler \\
+{\tt inicmc  }& Initialize communication between OASIS  \\
+ & and other models. \\
+{\tt inidya  }& Initialize pseudo-dynamic memory allocation. \\
+{\tt inigrd  }& Read in grid-related data files. \\
+{\tt iniiof  }& Open up input and output files. \\
+{\tt inilun  }& Assign logical unit numbers to all used files. \\
+{\tt inipar  }& Read in input file {\em namcouple}. \\
+{\tt initim  }& Initialize time iterative scheme parameters. \\
+\hline
+\end{tabular}
+\end{center}
+\caption{OASIS initialization subroutines}
+\label{tab.init}
+\end{table}
+
+
+\end{subsection}

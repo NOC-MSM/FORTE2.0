@@ -1,0 +1,442 @@
+*IDENT OAS_RUNOFF
+*B INISURF.21
+*CALL PARAMH
+*CALL OAfields
+*CALL AOfields
+
+*/ hsnow code
+*D BLSURF.359,360
+      deltasnow=0.0
+C No snowmelt over icecaps: snowdepth > SHSMAX handled later
+      IF(SVEGE(I,IHEM,JH).NE.2)THEN
+        deltasnow=-1.0*(tscur-tz)*hc1/(slhf*sdsn)/2.
+        if (hsnow(i,ihem,jh)+deltasnow.lt.0) then
+           deltasnow=-1*hsnow(i,ihem,jh)
+        endif
+        hsnow(i,ihem,jh)=hsnow(i,ihem,jh)+deltasnow
+      ENDIF
+C I've changed SHSMAX in the IGCM to 4m to match FORTE
+
+c     Put the melted snow into runoff after first recharging soil
+      if (deltasnow.lt.0.) then
+C Enough capacity in soil to take melted snow
+         if(ssmc-smstar(i,ihem,jh).gt.-deltasnow*sdsn/sdw) then
+           smstar(i,ihem,jh)=smstar(i,ihem,jh)-deltasnow*sdsn/sdw
+         else
+C Soil is saturated, excess snow into runoff
+           deltasnow=deltasnow+(ssmc-smstar(i,ihem,jh))*sdw/sdsn
+           smstar(i,ihem,jh)=ssmc
+           exwat(i,ihem,jh)=exwat(i,ihem,jh)-
+     :     deltasnow*(sdsn/sdw)*1000.*RADEA
+         endif
+      endif
+
+c  alterwater called once both rain and snow are included
+
+*I BLSURF.363
+c     Set a max snow depth of 4m to prevent runaway accumulation
+      if (hsnow(i,ihem,jh).gt.SHSMAX) then
+C Excess southwards of 55S added to iceberg flux for ocean
+        if (SI(JJ1(iRow)+JH,IHEM) .lt. -0.831)then
+          snowexcess=hsnow(i,ihem,jh)-SHSMAX
+          hsnow(i,ihem,jh)=SHSMAX
+          exiwat(i,ihem,jh)=exiwat(i,ihem,jh)+
+     :    snowexcess*(sdsn/sdw)*1000.*RADEA
+
+C Excess northwards of 66N added to iceberg flux for ocean
+C 66N chosen because otherwise large IGCM snowfall over
+C S Alaska/BC region goes into Arctic instead of Pacific
+C        elseif(SI(JJ1(iRow)+JH,IHEM) .ge. 0.914)then
+C
+C          snowexcess=hsnow(i,ihem,jh)-SHSMAX
+C          hsnow(i,ihem,jh)=SHSMAX
+C          exiwatn(i,ihem,jh)=exiwatn(i,ihem,jh)+
+C     :    snowexcess*(sdsn/sdw)*1000.*RADEA
+
+        else
+C Excess at other latitudes added to coastal runoff
+        snowexcess=hsnow(i,ihem,jh)-SHSMAX
+        hsnow(i,ihem,jh)=SHSMAX
+        exwat(i,ihem,jh)=exwat(i,ihem,jh)+
+     :  snowexcess*(sdsn/sdw)*1000.*RADEA
+        endif
+      endif
+
+*B INISTR.51
+      INTEGER :: IAREA, NCOAST
+*B INISTR.461
+      IF (MyPe.EQ.0) THEN
+c     read in the preprepared runoff grid (non-polar)
+      open(50,file='orogdata/T42.runoff-real.ForteIGCM4.grid'
+     $,status='old')
+      read (50,*) iareanum
+      do iarea=1,iareanum
+c      read in the land box perimeter
+       read (50,*) 
+         read (50,*) runoff(1,1,iarea),runoff(1,2,iarea)
+     $             ,runoff(2,1,iarea),runoff(2,2,iarea)
+         read (50,*) runoff(3,1,iarea)
+         do ncoast=1, runoff(3,1,iarea)
+         read (50,*) runoff(3+ncoast,1,iarea),runoff(3+ncoast,2,iarea)
+         end do
+      end do
+      close(50)
+      ENDIF   ! End Mype if
+      if(npe.gt.1)CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
+*B MLTRI.70
+C Water2dfull allocated in OAS_TEST update
+      REAL, ALLOCATABLE :: exwater2dfull(:,:,:)
+      REAL, ALLOCATABLE :: exiwater2dfull(:,:,:)
+      REAL, ALLOCATABLE :: exiwatern2dfull(:,:,:)
+      REAL, ALLOCATABLE :: water2_2dfull(:,:,:)
+*B MLTRI.151
+
+C At timesteps 0,1,2,3*ITSPD etc collect water & runoff quantities
+C and call alterwater which alters WATER2D
+
+      IF (MOD(KOUNT,ITSPD).eq.0) THEN
+
+        IF(MYPE.EQ.0)THEN
+          ALLOCATE(water2dfull(MG,NHEM,JG))
+          ALLOCATE(exwater2dfull(MG,NHEM,JG))
+          ALLOCATE(exiwater2dfull(MG,NHEM,JG))
+          ALLOCATE(exiwatern2dfull(MG,NHEM,JG))
+          ALLOCATE(water2_2dfull(MG,NHEM,JG))
+        ENDIF
+
+C collect variables from processes to arrays water2dfull,
+C exwater2dfull,exiwater2dfull,exiwater2dfull,water2_2dfull
+C MPI NOTE: WATER2_2DFULL is not used in ALTERWATER so
+C use this array to pass the full OFRAC array to ALTERWATER.
+C This is because ALTERWATER uses OFRAC annoyingly enough
+C which is split amongst the different processes.
+
+        CALL SHAREGRID(.FALSE.,MG,1,water2dfull,water2d)
+        CALL SHAREGRID(.FALSE.,MG,1,exwater2dfull,exwater2d)
+        CALL SHAREGRID(.FALSE.,MG,1,exiwater2dfull,exiwater2d)
+        CALL SHAREGRID(.FALSE.,MG,1,exiwatern2dfull,exiwatern2d)
+        CALL SHAREGRID(.FALSE.,MG,1,water2_2dfull,ofrac)
+
+        if(npe.gt.1)CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
+        if(mype.eq.0)then
+          CALL alterwater(exwater2dfull,exiwater2dfull,
+     1    exiwatern2dfull,water2dfull,water2_2dfull)
+        endif   ! End MYPE if
+        if(npe.gt.1)CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
+
+C send variables from 'full' arrays back to different processors 
+C in analagous manner to GSGfull & GSG in INISTR
+
+        CALL SHAREGRID(.TRUE.,MG,1,water2dfull,water2d)
+        CALL SHAREGRID(.TRUE.,MG,1,exwater2dfull,exwater2d)
+        CALL SHAREGRID(.TRUE.,MG,1,exiwater2dfull,exiwater2d)
+        CALL SHAREGRID(.TRUE.,MG,1,exiwatern2dfull,exiwatern2d)
+
+        IF(MYPE.EQ.0)THEN
+          DEALLOCATE(water2dfull)
+          DEALLOCATE(exwater2dfull)
+          DEALLOCATE(exiwater2dfull)
+          DEALLOCATE(exiwatern2dfull)
+          DEALLOCATE(water2_2dfull)
+        endif   ! End MYPE if
+
+        if(npe.gt.1)CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
+
+      ENDIF    ! End MOD(KOUNT,ITSPD) IF
+C
+*DECK alterwater
+      SUBROUTINE alterwater(exwaflx,exiwaflx,exinwaflx,waflx,waflx2)
+c----------------------------------------------------
+c rssmi: 14-11-01                                                         
+c deals with the lack of run-off in the coupled model                     
+c reads in a preprepared drainage basin mask and passes                   
+c excess water from land to those basins. Careful to                      
+c ensure that the drainage mask fits your other land                      
+c masks...                                                                
+c----------------------------------------------------          
+C Alterwater only be run on one processor MYPE=0 because it uses
+C the RUNOFF array which is global, not local to processors
+
+*CALL PARAM1
+*CALL PARAM2
+*CALL PARAM3
+*CALL OROG_G
+*CALL PARAMH
+*CALL OAfields
+
+      integer ymax,iarea,ncoast
+      parameter(ymax=jm)
+                                                                          
+C NOTE: WAFLX2 IS THE FULL 2D VERSION OF OFRAC which is needed below
+
+      real waflx(mg,nhem,jg), exwaflx(mg,nhem,jg), exiwaflx(mg,nhem,jg)
+      real waflx2(mg,nhem,jg), exinwaflx(mg,nhem,jg)
+
+      real wagrid(mg,ymax),exgrid(mg,ymax), exigrid(mg,ymax)
+      real exgrid2(mg,ymax), exingrid(mg,ymax)
+      real exgrid3(mg,ymax)
+      real exgrid4(mg,ymax)
+      real exgrid5(mg,ymax)
+      real exgrid9(mg,ymax)
+      real newagrid(mg,ymax)
+      real newagrid2(mg,ymax)
+
+      integer iland(2), jland(2), icoast, jcoast
+      real totalrain, yagrid
+      real ddxx(ymax),ddyy(ymax),rlat(ymax)
+      data ddyy/3.42217100000001, 2.82076499999999,
+     1  2.80203100000000, 2.79667400000000, 2.79441100000001,             
+     1  2.79322999999999, 2.79255999999999, 2.79211800000000,             
+     1  2.79182700000000, 2.79162800000000, 2.79147200000000,             
+     1  2.79135000000000, 2.79127300000000, 2.79119100000000,             
+     1  2.79114700000000, 2.79108799999999, 2.79106400000001,             
+     1  2.79103000000000, 2.79100400000000, 2.79098399999999,             
+     1  2.79096700000000, 2.79095000000000, 2.79093800000000,             
+     1  2.79092500000000, 2.79092000000000, 2.79090900000000,             
+     1  2.79090600000000, 2.79089900000000, 2.79089530000000,             
+     1  2.79089230000000, 2.79089080000000, 2.79088960000000,             
+     1  2.79088960000000, 2.79089080000000, 2.79089230000000,             
+     1  2.79089530000000, 2.79089900000000, 2.79090600000000,             
+     1  2.79090900000000, 2.79092000000000, 2.79092500000000,             
+     1  2.79093800000000, 2.79095000000000, 2.79096700000000,             
+     1  2.79098399999999, 2.79100400000000, 2.79103000000000,             
+     1  2.79106400000001, 2.79108799999999, 2.79114700000000,             
+     1  2.79119100000000, 2.79127300000000, 2.79135000000000,             
+     1  2.79147200000000, 2.79162800000000, 2.79182700000000,             
+     1  2.79211800000000, 2.79255999999999, 2.79322999999999,             
+     1  2.79441100000001, 2.79667400000000, 2.80203100000000,             
+     1  2.82076499999999, 3.42217100000001/                               
+      data rlat/ -87.8638460000000,                                       
+     1  -85.0965120000000, -82.3129040000000, -79.5256120000000,          
+     1  -76.7368930000000, -73.9475170000000, -71.1577450000000,          
+     1  -68.3677600000000, -65.5776060000000, -62.7873540000000,          
+     1  -59.9970170000000, -57.2066270000000, -54.4161990000000,          
+     1  -51.6257320000000, -48.8352360000000, -46.0447200000000,          
+     1  -43.2541920000000, -40.4636460000000, -37.6730840000000,          
+     1  -34.8825190000000, -32.0919420000000, -29.3013570000000,          
+     1  -26.5107670000000, -23.7201710000000, -20.9295770000000,          
+     1  -18.1389690000000, -15.3483650000000, -12.5577550000000,          
+     1  -9.76714520000000, -6.97653390000000, -4.18592020000000,          
+     1  -1.39530680000000,  1.39530680000000,  4.18592020000000,          
+     1   6.97653390000000,  9.76714520000000,  12.5577550000000,          
+     1   15.3483650000000,  18.1389690000000,  20.9295770000000,          
+     1   23.7201710000000,  26.5107670000000,  29.3013570000000,          
+     1   32.0919420000000,  34.8825190000000,  37.6730840000000,          
+     1   40.4636460000000,  43.2541920000000,  46.0447200000000,          
+     1   48.8352360000000,  51.6257320000000,  54.4161990000000,          
+     1   57.2066270000000,  59.9970170000000,  62.7873540000000,          
+     1   65.5776060000000,  68.3677600000000,  71.1577450000000,          
+     1   73.9475170000000,  76.7368930000000,  79.5256120000000,          
+     1   82.3129040000000,  85.0965120000000,  87.8638460000000/          
+      do i=1,ymax
+      ddxx(i)=ddyy(i)*cos(rlat(i)*3.1415927/180.)
+      end do
+
+c      reformat (ex)waflx onto same grid and initialize the 'new' array
+
+      do i=1,mg
+      do j=1,ymax
+c the next 3 lines are the correct ones: waflx2 is OFRAC
+      if(j.gt.JG)ofr=waflx2(i,1,ymax+1-j)
+      if(j.le.JG)ofr=waflx2(i,2,j)
+           exgrid3(i,j)=ofr
+      end do
+      end do
+                                                                          
+      do i=1,mg
+      do j=1,ymax
+C runoff and snow excess > 55S & < 66N
+      if(j.gt.JG)ofr=exwaflx(i,1,ymax+1-j)
+      if(j.le.JG)ofr=exwaflx(i,2,j)
+         exgrid(i,ymax+1-j)=ofr
+C snow excess < 58S
+      if(j.gt.JG)ofr=exiwaflx(i,1,ymax+1-j)
+      if(j.le.JG)ofr=exiwaflx(i,2,j)
+         exigrid(i,ymax+1-j)=ofr
+C snow excess > 66N
+      if(j.gt.JG)ofr=exinwaflx(i,1,ymax+1-j)
+      if(j.le.JG)ofr=exinwaflx(i,2,j)
+         exingrid(i,ymax+1-j)=ofr
+C surface water balance P minus E correction
+      if(j.gt.JG)ofr=waflx(i,1,ymax+1-j)
+      if(j.le.JG)ofr=waflx(i,2,j)
+C Do not Multiply by OFRAC since land coast P-E counted in runoff
+         newagrid2(i,ymax+1-j)=ofr
+      end do
+      end do
+
+      do iarea=1,iareanum-5
+      totalrain=0.
+
+c      read in the land box perimeter
+      iland(1)=runoff(1,1,iarea)
+      iland(2)=runoff(1,2,iarea)
+      jland(1)=runoff(2,1,iarea)
+      jland(2)=runoff(2,2,iarea)
+      ncoast=runoff(3,1,iarea)
+
+c add up area-weighted excess runoff over land in box IAREA
+
+         do i=iland(1),iland(2)
+         do j=jland(1),jland(2)
+             totalrain=totalrain+exgrid(i,j)*ddxx(j)
+C     1   *(1.-exgrid3(icoast,ymax+1-jcoast))
+C MMJ 9 Sep Fix
+     1   *(1.-exgrid3(i,ymax+1-j))
+         end do
+         end do
+
+c calculate the total (2D) sum of coastal points
+c total is area-weighted sum of gridpoints and not ocean fractions
+c since flux to ocean only depends on total incoming runoff
+C SUM fluxes not volumes
+         yagrid=0
+         do n=1,ncoast
+            icoast=runoff(3+n,1,iarea)
+            jcoast=runoff(3+n,2,iarea)
+!            yagrid=yagrid+ddxx(jcoast)*exgrid3(icoast,ymax+1-jcoast)
+            yagrid=yagrid+ddxx(jcoast)*ddxx(jcoast)
+         end do
+
+c      divide runoff total by the (2D) area of coastal points
+         totalrain=totalrain/yagrid
+c        totalrain=totalrain/real(ncoast)
+
+c      and add it to the dumps for that coastal point
+         do n=1,ncoast
+            icoast=runoff(3+n,1,iarea)
+            jcoast=runoff(3+n,2,iarea)
+      newagrid2(icoast,jcoast)=newagrid2(icoast,jcoast)
+     $                           +totalrain*ddxx(jcoast)
+         end do
+
+      end do
+
+c  distribute Antarctic runoff over Southern Ocean
+c  distribute snowdiff (icebergs) over southern ocean
+C  Antarctic runoff is different continent in runoff array
+c     (iceberg fw flux is much larger than runoff in reality)
+
+      totaliberg=0.
+
+      do iarea=iareanum-4,iareanum
+
+c      read in the land box perimeter
+      iland(1)=runoff(1,1,iarea)
+      iland(2)=runoff(1,2,iarea)
+      jland(1)=runoff(2,1,iarea)
+      jland(2)=runoff(2,2,iarea)
+
+c add up area-weighted excess runoff over land in box IAREA
+
+         do i=iland(1),iland(2)
+         do j=jland(1),jland(2)
+             totaliberg=totaliberg+exgrid(i,j)*ddxx(j)
+C     1   *(1.-exgrid3(icoast,ymax+1-jcoast))
+C MMJ 9 Sep Fix
+     1   *(1.-exgrid3(i,ymax+1-j))
+         end do
+         end do
+      end do
+
+C add up excess snowfall over SHSMAX south of 55S
+
+      do i=1,mg
+      do j=ymax/2+1,ymax
+          totaliberg=totaliberg+exigrid(i,j)*ddxx(j)
+C     1   *(1.-exgrid3(icoast,ymax+1-jcoast))
+C MMJ 9 Sep Fix
+     1   *(1.-exgrid3(i,ymax+1-j))
+      end do
+      end do
+                                                                          
+c calculate the total (2D) area of dumps in S Ocean
+      yagrid=0
+      do i=1,mg
+      do j=53,ymax
+          yagrid=yagrid+ddxx(j)*exgrid3(i,ymax+1-j)
+!         yagrid=yagrid+ddxx(j)
+      end do
+      end do
+                                                                          
+c      divide that total by the (2D) area of coastal dumps
+      totaliberg=totaliberg/yagrid
+
+c      and add it to the dumps for that area
+      do i=1,mg
+      do j=53,ymax
+      if(exgrid3(i,ymax+1-j).gt.0.)then
+      newagrid2(i,j)=newagrid2(i,j)+totaliberg
+      endif
+      end do
+      end do
+
+c---Also distribute NH iceberg calving over whole arctic
+C  Antarctic runoff done earlier
+
+      totaliberg=0.
+
+c Snowfall to iceberg flux added up in Arctic
+C exingrid should only contain values north of 66N
+
+      do i=1,mg
+      do j=1,ymax/2
+          totaliberg=totaliberg+exingrid(i,j)*ddxx(j)
+C     1   *(1.-exgrid3(icoast,ymax+1-jcoast))
+C MMJ 9 Sep Fix
+     1   *(1.-exgrid3(i,ymax+1-j))
+      end do
+      end do
+
+c calculate the total (2D) area of dumps in Arctic circle
+      yagrid=0
+      do i=1,mg
+      do j=1,8
+         yagrid=yagrid+ddxx(j)*exgrid3(i,ymax+1-j)
+!         yagrid=yagrid+ddxx(j)
+      end do
+      end do
+
+c      divide that total by the (2D) area of coastal dumps
+      totaliberg=totaliberg/yagrid
+
+c      and add it to the dumps for that area
+      do i=1,mg
+      do j=1,8
+      if(exgrid3(i,ymax+1-j).gt.0.)then
+      newagrid2(i,j)=newagrid2(i,j)+totaliberg
+      endif
+      end do
+      end do
+
+c      now, give the field back
+
+      do j=ymax,1,-1
+      do i=1,mg
+         if(exgrid3(i,ymax+1-j).eq.0.)then
+         exgrid4(i,j)=0.
+         else
+C Normalise flux by ocean fraction
+         exgrid4(i,j)=newagrid2(i,j)/exgrid3(i,ymax+1-j)
+         endif
+
+         if(j.gt.32)waflx(i,2,65-j)=exgrid4(i,j)
+         if(j.le.32)waflx(i,1,j)=exgrid4(i,j)
+         ofr=exgrid4(i,ymax+1-j)
+      end do
+      end do
+
+      sum1=0.
+      sum4b=0.
+      do i=1,mg
+      do j=1,ymax
+      sum1=sum1+exgrid(i,j)*ddxx(j)
+      sum4b=sum4b+exgrid4(i,j)*ddxx(j)*exgrid3(i,ymax+1-j)
+      end do
+      end do
+      write(6,*) " SUM1 ",sum1
+      write(6,*) " SUM4b ",sum4b
+
+      return
+      end
+

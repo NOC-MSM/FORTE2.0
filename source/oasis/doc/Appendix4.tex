@@ -1,0 +1,419 @@
+\newpage
+\begin{section}{Two examples of the input file {\em namcouple}}
+\label{app_namcouple}
+Two examples of the input file {\em namcouple}, described in more details
+in \ref{subsec_input}, are given here.
+
+\begin{subsection}{A {\em namcouple} for a regional Pacific coupling}
+
+This section gives the OASIS input file {\em namcouple} relevant
+for a simulation with a Pacific ocean model coupled to a global 
+atmospheric model. This {\em namcouple}
+tells OASIS to run a 5-day simulations during which
+1) the two models run simultaneously; 2) the PIPE library is used 
+as communication technique and the computer is a CRAY one; 3) the 
+atmospheric model needs two fields, namely the sea surface 
+temperature and the sea-ice extent; 4) the ocean model needs five fields,     
+the non-solar heat flux, the solar heat flux, the zonal and meridional wind
+stress as well as the freshwater flux; 5) all these fields are exchanged
+every day.
+
+The {\em namcouple} file is as follows:
+\begin{verbatim}
+
+######################################################################
+# This file can be used AS IT IS for the coupled simulation
+#
+ $SEQMODE
+                1
+ $END
+#
+ $MACHINE
+                CRAY
+ $END
+#
+ $CHANNEL
+                PIPE               
+ $END
+#
+ $NFIELDS
+                7
+ $END
+#
+ $JOBNAME
+                JR1
+ $END
+#
+ $NBMODEL
+                2  arpege   opa
+ $END
+#
+ $RUNTIME
+                432000
+ $END
+#
+ $INIDATE
+                19860101
+ $END
+#
+ $MODINFO
+                NOT
+ $END
+#
+ $NLOGPRT
+ 2
+ $END
+#
+ $STRINGS
+# 
+# Field 1 : sea surface temperature
+#
+SOSSTSST SISUTESU 1 86400  5  sstocean   sstatmos  35  96  EXPORTED
+228  94    128  64    topa  at42     1  0  0  0
+P 2 P 0
+CHECKIN INTERP FILLING BLASNEW CHECKOUT REVERSE GLORED
+# 
+  SURFMESH    Z    SCALAR      1   30   1
+  climasea  21  SMOSSTSE   0    DELTASST  20 
+  1.   1  
+  CONSTANT     273.15
+  NORSUD   WSTEST  
+  NO32 2 1 1
+#
+# Field 2 : sea ice extent
+#
+SOICECOV  SIICECOV  2   86400  4  sstocean   sstatmos  35  96  EXPORTED
+228  94    128  64   topa   at42     1  0  0  0
+P 2 P 0
+ CHECKIN INTERP FILLING CHECKOUT REVERSE GLORED
+#
+  SURFMESH  Z  SCALAR    1  30   0
+  climasea  21   RAWSIEMO
+  NORSUD WSTEST
+  NO32 2 0 1  
+#
+# Field 3 : non solar heat flux
+#
+CONSFTOT SOHEFLDO 6 86400  7   flxatmos  flxocean   95   31   EXPORTED
+128 64  228 94  at42   topa  1  0  0  0
+P 0 P 2
+REDGLO INVERT CHECKIN CORRECT MASK EXTRAP BLASOLD  INTERP CHECKOUT
+#
+  NO32   SEALAND 
+  NORSUD    WSTEST 
+  1.0     1  
+  DELTASST  -3.456000e+06   fluxcorr   20
+  999999999
+  NINENN  2 1 2
+  1.157407e-05  1 
+  COSHFTOT  1.157407e-05
+  BICUBIC  R   SCALAR
+#
+# Field 4 : solar heat flux
+#
+COSHFTOT  SOSHFLDO  7 86400  6   flxatmos  flxocean 95 31  EXPORTED 
+128 64  228 94  at42     topa  1  0  0  0
+P  0 P 2
+REDGLO INVERT MASK EXTRAP BLASOLD  INTERP
+#
+  NO32    SEALAND
+  NORSUD    WSTEST 
+  999999999
+  NINENN  2 0 2
+  1.157407e-05  0
+  BICUBIC  R   SCALAR
+#
+# Field 5 : zonal wind stress
+#
+COZOTAUX  SOZOTAUX   23  86400  6   flxatmos  flxocean 95 31  EXPORTED 
+128 64  228 94  at42     uopa  1  0  0  0
+P  0 P 2
+REDGLO INVERT MASK EXTRAP BLASOLD  INTERP
+#
+  NO32    SEALAND
+  NORSUD    WSTEST 
+  999999999
+  NINENN  2 0 2
+  1.157407e-05  0
+  BICUBIC  R   VECTOR
+#
+# Field 6 : meridional wind stress
+#
+COMETAUY  SOMETAUY   24  86400  6   flxatmos  flxocean 95 31  EXPORTED 
+128 64  228 94  at42     vopa  1  0  0  0
+P  0 P 2
+REDGLO INVERT MASK EXTRAP BLASOLD  INTERP
+#
+  NO32    SEALAND
+  NORSUD    WSTEST 
+  999999999
+  NINENN  2 0 2
+  1.157407e-05  0
+  BICUBIC  R  VECTOR
+#
+# Field 7 : water flux
+#
+COWATFLU  SOWAFLDO  30  86400  6  flxatmos  flxocean 95 31  EXPORTED
+128 64  228 94  at42     topa  1  0  0  0
+P  0 P 2
+REDGLO INVERT MASK EXTRAP BLASOLD  INTERP
+#
+  NO32    SEALAND
+  NORSUD    WSTEST 
+  999999999
+  NINENN  2 0 2
+  1.157407e-05  0
+  BICUBIC  R    SCALAR
+ $END
+#####################################################################
+\end{verbatim}
+\end{subsection}
+
+\begin{subsection}{A {\em namcouple} for a global ocean-ice-atmosphere coupling}
+This section gives the OASIS input file {\em namcouple} relevant
+for a simulation with a global ocean model coupled to a global 
+atmospheric model. This {\em namcouple}
+tells OASIS to run a 5-day simulation during which
+1) the two models run simultaneously; 2) the SIPC library is used 
+as communication technique and the computer is a  VPP; 3) the fields are
+exchanged with a header encapsulated within 
+the field brick; 4) the 
+atmospheric model needs three fields, namely the sea surface 
+temperature, the sea surface albedo and the sea-ice extent; 4) the ocean model needs eight fields, the non-solar heat flux, the solar heat flux, the
+evaporation flux, the liquid precipitation, the solid precipitation, the
+runoff, the zonal and meridional wind stresses; furthermore 3 fields are
+exchanged as auxiliary between the atmosphere and OASIS (without being
+transfered to the ocean); 5) all these fields 
+are exchanged every day.
+
+The {\em namcouple} file is as follows:
+\begin{verbatim}
+
+######################################################################
+# This file can be used AS IT IS for the coupled simulation
+#                                                                              
+  $SEQMODE                                                                     
+              1                                                                
+  $END                                                                        
+# 
+  $MACHINE                                                                     
+              IEEE                                                            
+  $END                                                                         
+#  
+  $CHANNEL                                                                     
+              SIPC                                                            
+  $END
+# 
+  $NFIELDS                                                                     
+              14
+  $END  
+# 
+  $JOBNAME                                                                  
+              CS2                                                         
+  $END                                                                  
+#  
+  $NBMODEL                                                                   
+    2  arpege   opaice                                                       
+# 
+  $END                                                                       
+#   
+ $RUNTIME                                                                   
+      432000 
+ $END                                                                        
+#   
+ $INIDATE                                                                    
+            230101                                                          
+    
+ $END                                                                       
+#
+ $MODINFO
+                NOT
+ $END
+#
+ $NLOGPRT
+ 2
+ $END
+#
+ $STRINGS                                                                  
+#     
+############################################################################ 
+#                      OCEAN  --->>>  ATMOS                                  
+#                      --------------------                                  
+#
+# Field 1 : sea surface temperature
+#                          
+SOSSTSST SISUTESU 1 86400  6  sstocean   sstatmos  35   96  EXPORTED        
+182  152    96  48    topa  at31     1     0      0      1 
+P 2 P 0                 
+CHECKIN  MOZAIC   BLASNEW   CHECKOUT  REVERSE  GLORED                      
+# 
+  at31topa      91      2     36                                            
+  1.   1                                                                     
+  CONSTANT     273.15                                                       
+  NORSUD   WSTEST                                                           
+  NO24 3 1 1                                                                  
+#                                                                       
+# Field 2 : Mean sea surface albedo                                     
+#                                                                       
+SOALBEDO  SIALBEDO  17  86400  5  sstocean   sstatmos  35   96 EXPORTED 
+182    152    96    48    topa    at31    1    0     0     1  
+P 2 P 0           
+CHECKIN  MOZAIC  CHECKOUT  REVERSE  GLORED                             
+#                                                                       
+  at31topa   91    2   36                                                
+  NORSUD   WSTEST                                                         
+  NO24 3 0 1                                                              
+#                                                                       
+# Field 3 : Sea ice extent                                              
+#                                                                       
+SOICECOV SIICECOV 2 86400  5  sstocean   sstatmos  35   96  EXPORTED    
+182  152    96  48    topa  at31     1    0     0    1 
+P 2 P 0                  
+#                                                                       
+  CHECKIN  MOZAIC  CHECKOUT  REVERSE  GLORED                              
+  at31topa   91    2   36                                                
+  NORSUD   WSTEST                                                         
+  NO24 3 0 1                                          
+#                                                                       
+########################################################################
+#                      ATMOSPHERE  --->>>  OCEAN                        
+#                      -------------------------                        
+#                                                                       
+# Field 4 : Non solar heat flux                                         
+#                                                                       
+CONSFTOT SONSHLDO 6 86400  5   flxatmos  flxocean  95   31   EXPORTED   
+96   48  182   152  at31   topa    1     0     0     1  
+P 0 P 2                  
+REDGLO  INVERT CHECKIN   SUBGRID  CHECKOUT                             
+#                                                                       
+  NO24   SEALAND                                                           
+  NORSUD    WSTEST                                                        
+  subgrd31  92    1   40   NONSOLAR   COSSTSST   SOSSTSST   CODFLXDT    
+#                                                                       
+# Field 5 : Surface temperature                                         
+#                                                                       
+COSSTSST SOTSMEAN  34  86400  3   flxatmos  flxocean  95   31  AUXILARY 
+96  48  182 152   at31   topa  1  0  0    1
+P 0 P 2                               
+REDGLO INVERT  CHECKIN                                               
+#                                                                       
+  NO24   SEALAND                                                           
+  NORSUD    WSTEST 
+#                                                                       
+# Field 6 : non solar heat flux derivative                              
+#                                                                       
+CODFLXDT  SODFLXDT   35   86400  5   flxatmos  flxocean  95  31  EXPORTED
+96   48   182    152    at31   topa   1    0    0     1   
+P 0 P 2               
+REDGLO  INVERT  CHECKIN  MOZAIC  CHECKOUT                              
+#
+  NO24   SEALAND                                                           
+  NORSUD   WSTEST                                                         
+  subgrd31  92   1    40                                                  
+#                                                                       
+# Field 7 : Solar heat flux                                             
+#                                                                       
+COSHFTOT  SOSHFLDO   7   86400  5   flxatmos  flxocean  95   31  EXPORTED
+96   48  182   152  at31   topa  1  0   0   1  
+P 0 P 2                            
+REDGLO  INVERT   CHECKIN   SUBGRID  CHECKOUT                           
+#                                                                       
+  NO24     NOEXTRAP                                                        
+  NORSUD    WSTEST                                                       
+  subgrd31   92    1   40    SOLAR   COALBSUR  SOALBEDO                  
+#                                                                       
+# Field 8 : albedo                                                      
+#                                                                       
+COALBSUR  SOALBICE   17   86400  3  flxatmos  flxocean  95  31  AUXILARY
+96  48    182 152   at31   topa    1    0     0   1 
+P 0 P 2                       
+REDGLO  INVERT   CHECKIN                                               
+#                                                                       
+  NO24     SEALAND                                                         
+  NORSUD    WSTEST                                                      
+#                                                                       
+# Field 9 : Evaporation flux                                            
+#                                                                       
+COTHSHSU SOLATHSU 25 86400  8   flxatmos  flxocean  95   31  EXPORTED   
+96   48   182   152    at31    topa    1    0     0     1  
+P 0 P 2               
+REDGLO  INVERT  CHECKIN  MASK EXTRAP   INTERP BLASNEW  CHECKOUT        
+#                                                                       
+  NO24     SEALAND                                                          
+  NORSUD    WSTEST                                                        
+  999999999                                                       
+  NINENN   2  1  2                                                           
+  BICUBIC  G   SCALAR                                          
+  -1.157407e-05  0                                                        
+#                                                                       
+# Field 10 : Liquid precipitation                                       
+#                                                                       
+COTOLIPR SOTOLPSU 27 86400  8   flxatmos  flxocean  95   31  EXPORTED   
+96   48   182   152  at31   topa    1    0    0   1  
+P 0 P 2                    
+REDGLO  INVERT  CHECKIN  MASK  EXTRAP  INTERP  BLASNEW  CHECKOUT       
+#                                                                       
+  NO24     NOEXTRAP                                                         
+  NORSUD    WSTEST                                                        
+  999999999                                                       
+  NINENN  2  0  2                                                              
+  BICUBIC  G  SCALAR                                             
+  1.157407e-05  0                                                         
+#                                                                       
+# Field 11 : Solid precipitation                                        
+#                                                                       
+COTOSOPR SOTOSPSU 28 86400  8   flxatmos  flxocean  95   31  EXPORTED   
+96  48   182 152  at31   topa   1     0     0   1 
+P 0 P 2                       
+REDGLO  INVERT  CHECKIN  MASK  EXTRAP  INTERP  BLASNEW  CHECKOUT       
+#                                                                       
+  NO24    NOEXTRAP                                                         
+  NORSUD    WSTEST                                                        
+  9999999                                                       
+  NINENN  2 0 2                                                               
+  BICUBIC  G  SCALAR                                             
+  1.157407e-05  0                                                         
+#                                                                       
+# Field 12 : Runoff                                                     
+#                                                                       
+CORUNOFF  SORUNOFF   32  86400  6  flxatmos  flxocean  95  31  EXPORTED
+96  48   182 152  at31   topa   1     0     0   1   
+P 0 P 2                     
+REDGLO  INVERT  CHECKIN  MOZAIC  BLASNEW CHECKOUT                       
+#                                                                       
+  NO24     LANDSEA                                                          
+  NORSUD    WSTEST                                                        
+  runoff31   93   3    41                                                 
+  1.157407e-05  0 
+#                                                        
+# Field 13 : zonal wind stress                                          
+#                                                                       
+COZOTAUX  SOZOTAUX   23  86400  7   flxatmos  flxocean   95  31  EXPORTED
+96  48   182 152  at31     uopa  1  0    0    1  
+P 0 P 2                        
+REDGLO  INVERT CHECKIN  MASK EXTRAP INTERP CHECKOUT                    
+#                                                                       
+  NO24     SEALAND                                                          
+  NORSUD    WSTEST                                                        
+  999.999                                                                 
+  NINENN  2 0 2                                                               
+  BICUBIC  G   VECTOR                                           
+#                                                                       
+# Field 14 : meridional wind stress                                     
+#                                                                       
+COMETAUY  SOMETAUY   24  86400  7   flxatmos  flxocean 95   31  EXPORTED
+96   48  182 152  at31     vopa    1    0     0     1 
+P 0 P 2                   
+REDGLO  INVERT CHECKIN  MASK EXTRAP   INTERP  CHECKOUT                  
+#                                                                       
+  NO24     SEALAND                                                          
+  NORSUD    WSTEST                                                        
+  999.999                                                                 
+  NINENN  2 0 2                                                              
+  BICUBIC  G   VECTOR                                            
+#                                                                       
+ $END 
+#####################################################################
+\end{verbatim}       
+\end{subsection}
+\end{section}

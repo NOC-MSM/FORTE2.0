@@ -1,0 +1,751 @@
+\newpage
+\begin{section}{Detailed description of the communication techniques}
+\label{app_communication}
+
+\begin{subsection}{The PIPE communication technique}
+\label{subsec_pipecomm}
+
+\subsubsection{Introduction}
+
+The PIPE library was the first communication library to be developed
+within OASIS. It was written specifically for CRAY computers and cannot
+be used on other platforms in its current version. However, a portable PIPE
+library has also been developed by Jean Latour et Jalel Chergui 
+(people interested in using this portable library should contact us:
+oasishelp@ceracs.fr). Before proceeding to a detailed
+description of the PIPE library, it is important to stress the following:
+in the current version of OASIS, all
+communications take place between OASIS and one other component of the coupled
+system (there is no direct communication between the GCMs to be coupled).
+
+
+\subsubsection{How it works in OASIS}
+
+As described in paragraph \ref{subsubsec_coupling}, the PIPE library uses 
+named pipes (files based
+on First In, First Out concept, FIFO) to synchronize the 
+different models which are independent unix processes. In order to do so, 
+OASIS relies on READ and WRITE statements on the named pipes. The 
+synchronization is possible due to the blocking character of the READ 
+statement. When one component of the coupled system (say the AGCM)
+needs an update on its
+boundary conditions, it tries to read a message on a specific pipe and
+if the pipe is empty, it stops until something gets written on it. 
+When the needed data is available, OASIS writes on that specific pipe to tell 
+the AGCM it can read the data, and performs its time-stepping. 
+Note that the PIPE technique uses regular binary files and not the pipes
+themselves to exchange the data. 
+
+The initialization of all pipes is done in routines {\tt PIPE\_Init.f} for the
+model pipes (see this paragraph) and
+{\tt PIPE\_Define.f} for the field pipes (see next paragraph).
+Initially, OASIS creates two ``model pipes'' per model which are used to
+exchange general information with the models (see routine 
+{\tt PIPE\_Stepi.f}). 
+Note that these pipes are also created
+within each model which leads to an error 
+message of no consequence either in {\it cplout} or in the GCMs output files: 
+the order in which the pipes are first accessed is completly
+random which makes necessary this double creation. The error message just says
+that the pipe has already been created and 
+returns a ``-1'' error code. The names of the ``model pipes'' are defined as
+follows: OASIS reads in the number and the names of models under 
+the \$NBMODEL keywords in the input file {\em namcouple}, say 
+``2 atmos ocean'' and associates the number 01 to atmos and 02 to ocean. 
+The pipes are then created with names, for example, Preadm01 et Pwritm01 
+for the exchange between atmos and OASIS, etc. 
+
+Each exchanged field has also two associated pipes whose names are defined in
+the {\it namcouple} file (the first two words of the first input line 
+for each field). As previously, the creation of the pipes is done again 
+within each model of the coupled system 
+leading to the same type of error messages.
+
+The pipe creation is done through a call to the function {\tt mknod}
+(it is a CRAY-specific function call, see man mknod on CRAY machines).
+The {\tt assign} routine (also CRAY-specific, see man {\tt assign} on CRAY machines)
+ is used before the {\tt mknod}
+call to associate an alias to the pipe file which is going to be created.
+The alias is used {\tt within} OASIS or within the models for the write and 
+read statements
+while the pipe name is the one identified by the system (which appears when 
+a ``ls'' unix command is issued). This trick allows one to use character names,
+and not only unit numbers, to refer to the pipes within the different 
+processes (OASIS and the GCMs),
+ensuring the modularity of the communication step. The {\tt assign} call
+is also used to specify the file type for the pipe, i.e the way records
+are delimited and also the internal processing used for a given pipe
+(see man {\tt assign} for more details). For instance, reading and writing pipes
+are processed differently in OASIS: for writing pipes, the system call is
+immediate.
+In OASIS, the same name is used for
+both the pipe name and its alias. In the models, the pipe name is identical
+to the one used in OASIS (the same pipe is used by both processes and must
+then have the same name) while the alias name {\tt must} be different
+(simply because one cannot have two assign lines with identical pipe name and
+alias {\it and} different options). The
+proposed convention is to change the capitalization of the character variables:
+within OASIS, the pipe name and the alias are in capital letters while the
+alias is not in the models (the system does make the difference between the 
+two command lines).
+
+Finally, the synchronization between OASIS and one other component 
+is performed through the use of two routines, 
+{\tt PIPE\_Send.f} and {\tt PIPE\_Recv.f}. They
+are used to write on and read from a given pipe, respectively.
+
+\end{subsection}
+
+\begin{subsection}{The CLIM communication technique}
+\label{subsec_climcomm}
+\begin{subsubsection}{Introduction: a tribute to Fortran M}
+
+The need for a communication technique based on message passing
+appeared when we got involved in a meta-computing experiment, the
+Cathode project. The goal was to run a coupled ocean-atmosphere
+simulation between two distant supercomputers. This had been done few
+years before in the United States \cite{mech}  using the
+Parallel Virtual Machine (PVM). Another interesting contribution is due
+to Argonne National Laboratory's Fortran M ( Foster \cite{fm1}). 
+Defining explicit typed ports and channels
+between ports is a real improvement in the design of deterministic and
+reliable parallel applications. Unfortunatly the Fortran M compiler is
+not released on current supercomputers (VPP, CRAYs ...). Moreover, a parallel
+program using Fortran M has to fit in a single executable program (however, two
+Fortran M modules can be connected by the {\tt CHANNEL} statement
+only by a third module). However that may be, some of the following
+specifications used to define the CLIM package 
+share some Fortran M's caracteristics.
+
+\end{subsubsection}
+
+%
+% some specifications
+% -------------------
+%
+\begin{subsubsection}{Specifications of the CLIM library}
+
+\begin{itemize}
+
+\item {\tt Basic decisions}:
+the choice of a PVM-based library for a coupling
+tool still appears to be the most flexible one. We keep in mind the
+recommandations to evolve towards standards
+for parallel programming models, and further developments will
+use the Message Passing Interface (MPI) as soon as some points will be
+added in the MPI specifications (processes spawning and location, 
+informations on the current physical configuration...). 
+
+\item {\tt Processes status}: programs remain independent Unix
+processes without any hierarchical dependence. Therefore, no model
+is in charge of spawning the others. The launching of processes is up to
+the user. 
+
+\item {\tt Reliability}: the safety of data exchanges and an
+appropriate behavior to impredictible events in the Parallel Virtual
+Machine (code aborts, host failure, network time out...) is of major
+importance for long term simulations. 
+Therefore, multiple checks are performed before any send or
+receive operation. An informative panels of error codes facilitates the
+debugging effort, as well as a detailed trace file, generated by each
+model in the coupled application.
+Non blocking PVM functions are preferred to blocking ones. 
+However, receive or wait functions repeat themselves regularly with
+a time-out control.
+
+\item {\tt Flexibility}: the global configuration of the coupled
+application is hidden as most as possible to every process.
+A process is basically defined by its ports to the ``outside'' world.
+Ports are typed and they receive a symbolic name as well as a ``port
+status'' ({\it In} or {\it Out}, possibly both). 
+No assumption is done on the number of
+links (or Fortran M's {\it channels}) attached to a particular port.
+This is fixed only at execution time. Several programs can
+connect to an identical port. We call this mechanism the {\it dynamic 
+link creation}.
+A set of data can be imported or exported (with the same calling
+sequence) by a model, independently of its
+location, parallel decomposition or number of copies.
+
+\item {\tt Efficiency}: as a PVM-based library, we expect to get
+roughly the same performances than PVM with the most suitable options
+for communication purposes. This is achieved by checking architectures
+and number of processes to allow TCP protocol and to avoid duplicate
+memory copies when packing as often as possible.
+
+\item {\tt Integration in a parallel framework}:
+parallel programs (using PVM) 
+can safely use CLIM without any chance to interfere with 
+intrinsic messages.
+We can notice that the MPI communicator concept
+solve this kind of problem. The most popular parallel data 
+decompositions are integrated in the coupling library.
+
+\item {Portability}:
+using standard FORTRAN 77, the library should run on any usual target for 
+scientific computing (IBM RS6000 and SP's, SPARCs, SGIs, VPP 300 and 700,
+CRAY-2, CRAY C90 and CRAY J916).
+
+\end{itemize}
+
+\end{subsubsection}
+
+%%%*** --------------------------------------------------------------
+
+%
+\begin{subsubsection}{Subroutines Summary}
+%
+The design of the CLIM library took advantage of the work carried out in
+the parallelization of the HIRLAM model, particularly about
+the {\it Application Dependent Message Passing Layer} (ADMPL
+\cite{hirlam}).
+CLIM is written in standard Fortran 77, except for the used of long
+names and lower case characters. Subroutine names, error codes
+or defined constants begin with the {\tt CLIM\_} prefix.
+All the message passing and distributed
+stuffs needed for a coupled application are encapsulated inside CLIM
+subroutines which can be divided in three sets as detailed in
+the table \ref{tab.clim}. These subroutines are described in more detail
+in appendix \ref{app_routines}.
+
+\begin{table}[hbtp]
+\begin{center}
+\begin{tabular}{|l|l|}
+\hline
+Routine name & Description \\
+\hline
+\hline
+\multicolumn{2}{|c|}{Process Management} \\
+\hline
+{\tt CLIM\_Init }& Registers the process in PVM, opens the trace file,
+\\
+ & and initializes basic variables. \\
+{\tt CLIM\_Quit }& Proper exit from the CLIM session. \\
+{\tt CLIM\_Reset}& Removed all the environement of the current \\
+ & experiment in order to start a new one. \\
+{\tt CLIM\_Start}& Performs the dynamic link creation and \\
+ & computes differences between models' wall clock. \\
+\hline
+\multicolumn{2}{|c|}{Ports Management} \\
+\hline
+{\tt CLIM\_Define}& Defines a new port. \\
+{\tt CLIM\_Export}& Exports a buffer on the specified port \\
+& at a given time step. \\
+{\tt CLIM\_Import}& Imports in a buffer the incoming data  \\
+& on the specified port at a given time step. \\
+{\tt CLIM\_Wait }& Blocks until some data is arrived on any port. \\
+& Then, it returns the port name. \\
+\hline
+\multicolumn{2}{|c|}{Comfort Routines} \\
+\hline
+{\tt CLIM\_Delta}& Returns difference in seconds between \\
+& a remote model wall clock and the calling process' one.\\
+{\tt CLIM\_Stepi}& Returns time steps informations of a specified model.
+\\
+{\tt CLIM\_Time }& Returns wall clock time. \\
+{\tt CLIM\_Trace}& Returns the number of bytes imported or \\
+& exported by the calling process. \\
+\hline
+\end{tabular}
+\end{center}
+\caption{CLIM subroutines}
+\label{tab.clim}
+\end{table}
+%
+\end{subsubsection}
+%
+\begin{subsubsection}{Defined Constants}
+%
+The following tables give the value by default of some constants
+defined in the {\tt clim.h} file of the {\tt src} directory.
+When modifying these values (for example, increasing the number of
+ports per model), the complete library should be re-compiled.
+
+\begin{table}[hbtp]
+\begin{center}
+\begin{tabular}{|lrl|}
+\hline
+  Name & Default Value & Description \\
+\hline
+\hline
+  {\tt CLIM\_MaxMod}     &  8 & Maximum number of models\\
+  {\tt CLIM\_MaxPort}    & 16 & Maximum number of ports per model\\
+  {\tt CLIM\_MaxSegments} & 160 & Maximum number of segments\\
+  {\tt CLIM\_MaxTag}     & 16777215 & Maximum tag number\\
+  {\tt CLIM\_Clength}    & 32 & Character string length\\
+\hline
+\end{tabular}
+\end{center}
+\caption{Main parameters}
+\label{def_dims}
+\end{table}
+%
+\begin{table}[hbtp]
+\begin{center}
+\begin{tabular}{|lrl|}
+\hline
+  Name & Value & Description \\
+\hline
+\hline
+  {\tt CLIM\_Integer}    & 1 & Simple precision integer (32 bits)\\
+  {\tt CLIM\_Real}       & 4 & Simple precision real (32 bits)\\
+  {\tt CLIM\_Double}     & 8 & Double precision real (64 bits)\\
+  {\tt CLIM\_In}         & 1 & Port status (in)\\
+  {\tt CLIM\_Out}        & 0 & Port status (out)\\
+  {\tt CLIM\_InOut}      & 2 & Port status (in and out)\\
+  {\tt CLIM\_ContPvm}    & o & Continue PVM when {\tt CLIM\_Quit} is called\\
+  {\tt CLIM\_StopPvm}    & 1 & Exit PVM when {\tt CLIM\_Quit} is called\\
+\hline
+\end{tabular}
+\end{center}
+\caption{Other {\tt clim.h} Constants}
+\label{def_data}
+\end{table}
+\end{subsubsection}
+%
+\begin{subsubsection}{Errors codes}
+
+There are two levels of error codes. At the top level, every CLIM
+subroutine returns an output status (the list is given in table 
+\ref{err_codes}). If it appears that this information is not sufficient
+for a debugging purpose the matching PVM error code is displayed in the
+trace file with the PVM function name.
+
+\begin{table}[hbtp]
+\begin{center}
+\begin{tabular}{|lrl|}
+\hline
+  Name & Value & Meaning \\
+\hline
+\hline
+{\tt CLIM\_Ok        } & 0 & Guess what ? \\
+{\tt CLIM\_FastExit  } & -1 & A crucial error previously occured \\
+{\tt CLIM\_BadName   } & -2 & The specified model name doesn't exist \\
+{\tt CLIM\_BadPort   } & -3 & The specified port name doesn't exist \\
+{\tt CLIM\_BadType   } & -4 & The datatype is not recognized by CLIM \\
+{\tt CLIM\_DoubleDef } & -5 & This port is already defined \\
+{\tt CLIM\_NotStep   } & -6 & It's not a coupling time step of the model \\
+{\tt CLIM\_IncStep   } & -7 & Local and remote time steps are incompatible\\
+{\tt CLIM\_IncSize   } & -8 & An incompatible port size was found when linking\\{\tt CLIM\_NotClim   } & -9 & An external message arrived on the port\\
+{\tt CLIM\_TimeOut   } & -10 & A time out occured\\
+{\tt CLIM\_Pvm       } & -11 & Miscellaneaous PVM error (serious)\\
+{\tt CLIM\_FirstCall } & -12 & Error when calling PVM for the first time\\
+{\tt CLIM\_PbRoute   } & -13 & An error occured when setting the route mode\\
+{\tt CLIM\_Group     } & -14 & An error relative to group functions occured\\
+{\tt CLIM\_BadTaskId } & -15 & The matching pvm id is no more defined\\
+{\tt CLIM\_NoTask    } & -16 & The matching pvm task is no more present\\
+{\tt CLIM\_InitBuff  } & -17 & Impossible to get a sending buffer\\
+{\tt CLIM\_Pack      } & -18 & Some problem occured when packing\\
+{\tt CLIM\_Unpack    } & -19 & Some problem occured when unpacking\\
+{\tt CLIM\_Down      } & -20 & The complete Parallel Machine is down\\
+{\tt CLIM\_PvmExit   } & -21 & An error occured when exiting PVM\\
+\hline
+\end{tabular}
+\end{center}
+\caption{Error codes returned by CLIM subroutines}
+\label{err_codes}
+\end{table}
+\end{subsubsection}
+%
+\begin{subsubsection}{Parallel data decomposition strategies}
+\label{subsec:clim_para}
+
+Let us take the case where one of the component of the coupled system
+is a parallel code which implies that the coupling data (to be
+exchanged with OASIS) is scattered among different processors. In
+general, each process is responsible in physical space for a set of
+contiguous grid points. Using
+CLIM, there is no need to gather the whole data on one processor to transfer
+it to OASIS (which needs the complete data to perform the
+interpolation), one can directly send from each processor the appropriate
+data to OASIS. All the parallel processes define an identical port ,
+but with a different parallel data decomposition, while OASIS defines
+the matching port as usual.
+A certain number of data decomposition strategies have been
+implemented in CLIM based on the ``Multiple Links to Single Port''
+concept and can be used to achieve this multiprocessor data transfer.
+They are illustrated by the following figures:
+\begin{itemize}
+\item  Apple strategy (figure 1) \\
+\item  Box strategy (figure 2) \\
+\item  Orange strategy (figure 3) \\
+\end{itemize}
+
+In the Apple strategy, the data decomposition is described with the
+pair ({\it number of grid points, offset of the first point}) as shown
+in figure 1. CLIM also handles the Box strategy where each process is
+responsible for a rectangular box as well as the more generic Orange
+strategy where each process is responsible for arbitrarily distributed
+pieces of the field. One should note that these techniques are to be
+used if the number of parallel processes is small enough to allow
+all-to-one communications between the model processes and OASIS. If
+the number of processes doesn't allow anymore all-to-one
+communications, we can use all-to-all communications within the distributed
+model before communicating to Oasis. Gathering
+distributed pieces of a coupling field across parallel processes becomes a part
+of the parallel strategy of the model itself (in the same way as I/O
+for instance). Several possibilities could be explored: the data could
+be gathered through a reduction tree, allowing the node root to export
+the entire field. Another option is to gather parts of the field in an
+acceptable number (say 8 or 16) of processes which export the partial
+data through CLIM calls as described above.
+
+\end{subsubsection}
+
+\newpage
+\begin{subsubsection}{Apple strategy}
+\begin{figure}[hp]
+\centerline{\psfig{figure=apple.eps,width=6.0in}}
+\caption{Multiple Links - Single Port connexion: the Apple strategy}
+\label{applefig}
+\end{figure}
+\end{subsubsection}
+
+\newpage
+\begin{subsubsection}{Box strategy}
+\begin{figure}[hp]
+\centerline{\psfig{figure=box.eps,width=6.0in}}
+\caption{Multiple Links - Single Port connexion: the Box strategy}
+\label{boxfig}
+\end{figure}
+\end{subsubsection}
+
+\newpage
+\begin{subsubsection}{Orange strategy}
+\begin{figure}[hp]
+\centerline{\psfig{figure=orange.eps,width=6.0in}}
+\caption{Multiple Links - Single Port connexion: the Orange strategy}
+\label{orangefig}
+\end{figure}
+\end{subsubsection}
+\end{subsection}
+
+\begin{subsection}{The SIPC communication technique}
+\label{subsec_sipccomm}
+\subsubsection{Introduction}
+One way of exchanging informations and coupling fields between 
+{\tt OASIS} and the
+models is to use the communication library {\tt svipc.c}, written by Sami Saarinen
+from the European Centre for Medium-range Weather Forecast. This library uses 
+the System V Inter Process Communication ({\tt SVIPC}) Unix facility. {\tt SVIPC} allows
+two or more executing processes to share memory, and consequently the data 
+contained there, on a segment basis. This is done by allowing the processes to
+access common
+SHared-Memory ({\tt SHM}) segments, i.e. a common virtual memory address space. 
+
+\subsubsection{How it works in {\tt OASIS 2.3}}
+
+The interface between the main  {\tt OASIS} code and the {\tt svipc.c} 
+library is performed by the {\tt sipc} interface layer library (with
+routines labelled {\tt SIPC\_XXX.f}).
+
+At the beginning of a coupled run, {\tt OASIS} opens two model-specific pools of 
+{\tt SHM} segments per model, one for reading and the other for 
+writing initial 
+information ({\tt SIPC\_Init.f}). {\tt OASIS} also opens two field-specific pools of 
+{\tt SHM} segments for each coupling field 
+({\tt SIPC\_De\-fine.f}). Once 
+all pools have been  created, {\tt OASIS} opens a dummy ``signal'' file {\tt DUMMY\_SIPC}.
+Before attaching to the {\tt SHM} pools created by {\tt OASIS}, the models will
+have to wait for the ``signal'' file {\tt DUMMY\_SIPC} to be generated.
+
+For each model, {\tt OASIS} then writes initial information that will be read by 
+the model in the writing model-specific pool and reads initial information 
+written by the model in the reading model-specific pool ({\tt SIPC\_Stepi.f}). 
+
+At each coupling timestep, {\tt OASIS} reads each coupling field (and some 
+encapsulated informations) written by one model in a field-specific pool 
+(subroutine {\tt getfld.f}), treats the field, and 
+writes it (with some encapsulated informations) to another 
+field-specific pool where the other model will read it (subroutine {\tt givfld.f}).
+
+At the end of the run, {\tt OASIS} waits for all models to end, then
+destroys all {\tt SHM} pools ({\tt SIPC\_End.f} in subroutine {\tt
+waitpc.f}) .
+
+\subsubsection{More details on Sami Saarinen's {\tt svipc.c} library}
+
+As described above, the exchange of information and coupling fields with 
+Sami Saarinen's {\tt svipc.c} library is based on {\tt SVIPC} shared-memory segments.  
+Each {\tt SHM} segment is composed of one or many records and {\tt SHM} pools are formed
+by one or many {\tt SHM} segments. 
+
+\vspace{.6truecm}
+{\bf A) Shared-memory segments}
+\vspace{.3truecm}
+
+
+The maximum length of each segment is defined by the system parameter 
+{\tt shmmax} (see for example {\tt /var/sysgen/mtune/kernel} on 
+{\tt SGI ORIGIN 200}). In svipc.c, the maximum length of each segment
+is supposed to be {\tt MAXRECLEN} $\times$ {\tt RECPERSEG} = {\tt MAXSEGSIZE},
+where {\tt MAXRECLEN} is the maximum length of each record and {\tt RECPERSEG}
+the maximum number of records per segment. {\tt MAXRECLEN} equals
+131072 bytes by default, but can be modified by 
+calling the subroutine {\tt SVIPC\_setvar ('MAXRECLEN', [new value], retcode)}. 
+{\tt RECPERSEG} equals 8 by default, but can be modified by calling the
+subroutine {\tt SVIPC\_setvar ('RECPERSEG', [new value], retcode)}. There is no
+corresponding system parameters. {\tt MAXSEGSIZE} has to be smaller or
+equal to {\tt shmmax}. It is recommended to set the maximum length of
+each segment so that each coupling field can be contained in one
+segment only. 
+
+There is no limit in the number of segments per pool. However, the system
+parameters {\tt shmmni} and {\tt sshmseg} (see for example {\tt
+/var/sysgen/mtune/kernel} on  {\tt  SGI ORIGIN 200}) indicate 
+respectively the system limit on the number of active segments in the system 
+and on the number of segments attached to each process. See your system 
+manager to modify these system
+parameters. To run your coupled model, {\tt shmmni} and {\tt sshmseg}
+have to be at least 
+equal to twice the number of model + twice the number of exchanged
+fields,
+supposing that each coupling field can be entirely contained in one
+segment.
+
+\vspace{.6truecm}
+
+{\bf B) Semaphores}
+
+\vspace{.3truecm}
+
+To each {\tt SHM} pool, two semaphores are associated, one for reading
+and one for writing in the pool. As the {\tt SHM} segments, a semaphore is a shared 
+ressource across unrelated processes. The reading/writing semaphore tells how 
+many records are available in the pool for reading/writing. Each 
+time a writing/reading action fills/clears a
+record, the writing/reading semaphore is decreased by one unit and the 
+reading/writing semaphore is increased by one. The writing and reading actions
+respect a {\tt FIFO} (First In, First Out) basis.
+
+The system parameter {\tt semmni} (see for example {\tt /var/sysgen/mtune/sem} on SGI) indicates the system 
+limit on the number of semaphores available. See your system manager to modify
+this
+system parameter. To run your coupled model, {\tt semmni} has to be at least 
+equal to 4 times the number of model + 4 times the number of exchanged fields.
+
+\vspace{.6truecm}
+
+{\bf C) Some useful {\tt SVIPC} specific commands}
+
+\vspace{.3truecm}
+
+To have a full listing of {\tt SHM} segments and semaphores allocated: ``{\tt ipcs -ams}''
+
+
+To remove segment no. ``{\tt segno}'': ``{\tt ipcrm -m [segno]}''
+
+To remove semaphore no. ``{\tt semaphore\_id}'': ``{\tt ipcrm -s [semaphore\_id]}''
+
+\vspace{.6truecm}
+
+{\bf D) {\tt svipc} specific routines}
+
+\vspace{.3truecm}
+
+Fortran usage:
+\begin{enumerate}
+ 
+\item {\tt SVIPC\_open(handle, 'filename', size, retcode)}:
+
+  \begin{itemize}
+    \item allocates a {\tt SHM} pool of '{\tt size}' bytes having filename ``{\tt filename}''.
+    \item returns a handle. 
+    \item returns a retcode (number of bytes allocated or error code).
+  \end{itemize}
+
+\item {\tt SVIPC\_open(handle, 'filename', 0, retcode)}
+  
+  \begin{itemize}
+    \item attaches to already allocated {\tt SHM} pool having filename ``{\tt filename}''.
+    \item returns a handle.
+    \item returns a retcode (size of attached {\tt SHM} pool or error code).
+  \end{itemize}
+
+\item {\tt SVIPC\_close(handle, 0, retcode)}
+
+  \begin{itemize}
+    \item detaches from {\tt SHM} pool having handle ``{\tt handle}'', but does not
+destroy it.
+ \end{itemize}
+
+\item {\tt SVIPC\_close(handle, 1, retcode)}
+
+  \begin{itemize}
+    \item detaches and destroys {\tt SHM} pool having handle `{\tt `handle}''.
+ \end{itemize}
+
+\item {\tt SVIPC\_write(handle, buffer, numbytes, retcode)}
+
+ \begin{itemize}
+    \item writes ``numbytes'' to {\tt SHM} pool having handle ``{\tt handle}''.
+ \end{itemize}
+
+\item {\tt SVIPC\_read(handle, buffer, numbytes, retcode)}
+
+ \begin{itemize}
+    \item reads ``numbytes'' from {\tt SHM} pool having handle `{\tt `handle}''.
+ \end{itemize}
+
+\item{\tt  SVIPC\_inquire(handle, 'ALL', info, infolen, retcode)}
+
+ \begin{itemize}
+    \item inquires information about {\tt SHM}  pool having handle ``{\tt handle}''.
+ \end{itemize}
+
+\item {\tt SVIPC\_debug(debug\_level)}
+
+ \begin{itemize}
+    \item  activates debug prints of particular debug level (0,1,2,3)
+ \end{itemize}
+
+\end{enumerate}
+
+\end{subsection}
+
+\begin{subsection}{The GMEM communication technique}
+\label{subsec_gmemcomm}
+\subsubsection{Introduction}
+The {\tt GMEM} technique is specific to the SX4 and SX5 NEC machines. It is an 
+extension of the {\tt SIPC} method which uses the NEC-SX global memory 
+InterProcessCommunication facility. 
+It has been written by Hubert Ritzdorf from NEC-CCRLE. It allows
+two or more executing processes to share global memory space, 
+and consequently the data 
+contained there, on a segment basis. This is done by allowing the processes to
+access common SX-GlobalMEMory ({\tt SX-GMEM}) segments on a 
+{\tt FIFO} (First In, First Out) communication basis. 
+
+\subsubsection{How it works in {\tt OASIS 2.3}}
+
+The {\tt OASIS} interface to the {\tt /lib/sxgmem} library is identical 
+to that of the {\tt /lib/svipc} library. By interface, here we mean both 
+the {\tt /lib/sipc} interface layer routines as well as
+the names of the routines within the library (i.e svipc\_open ...) itself.
+Thus the user must be careful to select the appropriate library 
+when the linking process is performed. Within the
+{\tt OASIS} code, all the branching (i.e IF statements) to {\tt SIPC} 
+have become branching to {\tt SIPC} or {\tt GMEM}.
+So the way it works within {\tt OASIS} is the same as with {\tt svipc}
+(see {\tt SIPC} corresponding section for details) with few exceptions.
+
+First, in order to use the SX global memory, the interface must connect
+to the Message Passing Interface {\tt MPI} daemon. 
+This is done by a call to {\tt MPI\_Init} (CALL to 
+routine {\tt sxgmem\_init} within {\tt SIPC\_Init} if {\tt GMEM}). 
+Similarly, a call to {\tt MPI\_Finalize} is performed (CALL to routine 
+{\tt sxgmem\_end} within {\tt SIPC\_End} if {\tt GMEM}), although this is 
+not mandatory (it is if the
+other model executables are also parallelized by {\tt MPI}). Furthermore,
+the launching of the coupler and other executables is also performed
+through {\tt MPI} with the {\tt mpisx} command (see script {\tt lance\_sxgmem}
+ in the {\tt tools} directory). This feature is also used to deal with 
+potential deadlocks as {\tt mpisx} clears the whole coupled application 
+if one of the executables dies.
+
+Second, the termination phase is also slightly different with the 
+{\tt sxgmem} library: in the {\tt GMEM} case, routine {\tt waitcld.c} 
+suspends the coupler till it is awaked/resumed
+by the other processes (which is implicitly done through a CALL to 
+{\tt sxgmem\_end} within their equivalent routine {\tt SIPC\_End.f}).
+So the calls to the model's routine {\tt SIPC\_End.f} must be done when
+all the coupling exchanges have been performed (see the toy sxgmem).
+The {\tt waitcld.c} routine really
+suspends the coupler process and it doesn't consume any CPU time.
+
+\subsubsection{More details on Hubert Ritzdorf's {\tt sxgmem} library}
+
+As mentionned, the exchange of information and coupling fields with 
+Hubert Ritzdorf's {\tt /lib/sxgmem} library is based on the sharing of SX-GMEM
+space which is divided into segments. Each {\tt SX-GMEM} segment
+is composed of one or many records and {\tt SX-GMEM} pools are formed
+by one or many {\tt SX-GMEM} segments. 
+Writing and reading is organized to occur in smallish records,
+so that simultaneous access to the {\tt SX-GMEM} is possible for
+Write and Reader processes. The synchronization task in  {\tt SX-GMEM} 
+is controlled by two shared variables which control the number of records
+read from or written to the global memory.  These shared variables
+are decremented and incremented by a SX specific assembler instruction
+which atomically performs the corresponding operation.
+This is done
+at record level, and is completely transparent to the user.
+There is no limitations (except system-wide)
+to the size of the SX-GMEM area since the data pool may actually consist 
+of any number of chained SX-GMEM segments given by the system. This is in
+contrast with the SIPC method where there are strong constraints on the
+global size allocated to shared-memory segments. Furthermore, while 
+shared-memory segments are located in the scalar part of memory (for
+vector machines), the SX-GMEM space is within the regular (vector) memory.
+
+Great care must be exercised to ensure that integer and real representation
+is coherent among {\tt OASIS} and the other processes (check values of
+parameters {\tt jpbyterea} and {\tt jpbyteint} in {\tt OASIS} file {\tt
+parameter.h}). Furthermore, these values must be compatible with the floating
+point option (float0 for the SX5 and float0,1 or 2 for the SX4) used to compile the codes and with the MPI libraries (see the
+toy {\tt sxgmem} for further information and examples).
+
+\vspace{.6truecm}
+
+{\bf A) {\tt sxgmem} specific routines}
+
+\vspace{.3truecm}
+
+Fortran usage:
+\begin{enumerate}
+
+\item {\tt CALL SVIPC\_open(handle, 'filename', size, retcode)}
+
+ \begin{itemize}
+     \item Allocate SX-GMEM pool of 'size' bytes having filename ``{\tt filename}''.
+     \item returns handle ('a unit number')
+     \item returns retcode (number of bytes allocated or error code)
+ \end{itemize}
+
+\item {\tt CALL SVIPC\_open(handle, 'filename', 0, retcode)}
+ \begin{itemize}
+     \item Attach to already allocated SX-GMEM pool having filename ``{\tt filename}'' (set size to 0).
+     \item returns handle ('a unit number')
+     \item returns retcode (size of attached buffer or error code)
+ \end{itemize}
+
+\item {\tt CALL SVIPC\_close(handle, 0, retcode)}
+ \begin{itemize}
+     \item Detach from SX-GMEM pool having handle `{\tt `handle}'', but retain the SX-GMEM pool
+ \end{itemize}
+
+\item {\tt CALL SVIPC\_close(handle, 1, retcode)}
+ \begin{itemize}
+     \item Detach and destroy SX-GMEM pool having handle `{\tt `handle}'' (flag fields first bit set to 1)
+ \end{itemize}
+
+\item {\tt CALL SVIPC\_write(handle, buffer, numbytes, retcode)}
+ \begin{itemize}
+     \item Write 'numbytes' to SX-GMEM pool having handle `{\tt `handle}''
+ \end{itemize}
+
+\item {\tt CALL SVIPC\_read(handle, buffer, numbytes, retcode)}
+ \begin{itemize}
+     \item Read 'numbytes' from SX-GMEM pool having handle `{\tt `handle}''
+ \end{itemize}
+
+\item {\tt CALL SVIPC\_inquire(handle, 'ALL', info, infolen, retcode)}
+ \begin{itemize}
+     \item Inquire information about SX-GMEM pool having handle `{\tt `handle}''
+ \end{itemize}
+
+\item {\tt CALL SVIPC\_debug(debug\_level)}
+ \begin{itemize}
+     \item Activate debug print of particular debug level (0,1,2,3)
+ \end{itemize}
+
+\item {\tt CALL SVIPC\_setvar('MAXRECLEN', newvalue, retcode)}
+ \begin{itemize}
+     \item Change values of some internal variables
+     \item This will alter the size of logical record.
+ \end{itemize}
+
+\end{enumerate}
+
+\end{subsection}
+
+\end{section}

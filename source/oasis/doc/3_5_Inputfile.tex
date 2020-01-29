@@ -1,0 +1,685 @@
+\begin{subsection}{The input file {\it namcouple}}
+\label{subsec_input}
+
+The OASIS input file, {\em namcouple }, contains pretty much all
+the necessary information to run a coupled simulation. Routine {\tt inipar}
+is entirely devoted to the process of reading the input data file.
+An important feature of the file {\em namcouple } is that it does not
+use any specific format (such as formatted I/O or NAMELIST). OASIS has its
+own library of character string handling which performs the
+scanning of the input file, the search of keywords and the extraction
+and traduction of the strings of interest. One can define a character string
+as follows: it is a finite and continuous series of non-blank characters.
+This free-format aspect has important consequences: the keywords used to
+separate the different kind of data can appear in any order within the
+input file. The number of blanks between two character strings is
+non-significant. Furthermore, all lines beginning with \# are ignored and
+considered as comments.
+
+\vspace{0.4cm}
+
+The first part
+of {\em namcouple } is devoted to general input parameters such as the number
+of models involved in the simulation, the number of coupling fields,
+the type of time coupling strategy, etc. 
+The second part deals
+specifically with input regarding the coupling fields. In particular,
+it includes
+the whole list of analyses to be performed on each field as well as
+the appropriate parameters necessary to perform each analysis.
+Two examples of {\em namcouple} are given in appendix
+\ref{app_namcouple} and one can also find a file example /src/namcouple.
+
+\begin{subsubsection}{General description}
+\label{subsubsec_general}
+The first
+part of {\em namcouple } uses some predefined keywords (prefixed by the dollar
+sign) to locate the related
+input data. The dollar sign must be in the second column. The \$END strings
+present in the example given in appendix \ref{app_namcouple} are there just
+to nicely separate
+the different inputs by imitating the namelist-file looking. 
+The reading of data is done as follows :
+OASIS scans the input file until it finds the keyword of interest. Then,
+it skips to the next line and reads it as a character$\star$80 variable.
+This character variable or line is made of character strings (as defined above)
+separated by one or several blanks. Finally it parses the line to select and
+extract the character string of interest. If the input data is a character
+variable, it is read directly; otherwise the
+character string is read through an internal file in order to get the right
+type. The first nine keywords are described hereafter:
+
+\begin{itemize}
+
+\item {\tt \$SEQMODE}: This keyword regards the time strategy. It should be
+{\tt 1} if all models are running simultaneously. In that case, all
+models start at the same time reading their initial input fields
+in binary files. Then at each coupling timestep, they exchange the
+coupling fields and go on with these updated boundary conditions. 
+Otherwise, for n models running sequentially, it should be {\tt n}. In
+that case, the first model starts, reading its initial input field
+in a binary file. At the first coupling timestep, it stops giving its
+output coupling fields to the second model that starts running at that
+point with these output coupling fields as boundary condition, and so
+on.
+ 
+\item {\tt \$MACHINE}: This keyword describes the type of machine OASIS is
+running on. If it is a cray, it should be {\tt CRAY}. Otherwise, it should be
+{\tt IEEE}.
+\item {\tt \$CHANNEL}: This keyword refers to the communication technique
+used. It can be {\tt PIPE}, {\tt CLIM}, {\tt SIPC} or {\tt GMEM}. To run OASIS as
+an interpolator only, this keyword should be {\tt NONE}. For more
+detail, see section \ref{subsec_communication}. 
+\item {\tt \$NFIELDS}: This keyword is the total number of fields
+being exchanged. The maximum number is given by {\tt jpfield} in 
+{\tt include/parameter.h}.
+\item {\tt \$JOBNAME}: This keyword is a character$\star$3 or
+character$\star$4 variable
+giving an acronym for the given simulation.
+\item {\tt \$NBMODEL}: This keyword is the number of models running in the
+given experiment followed by their names. If one uses {\tt \$CHANNEL}
+= SIPC for the communication technique, the names of the models have to
+be CHARACTER*6 variables. If {\tt \$CHANNEL} = 
+NONE, {\tt \$NBMODEL} has to be 0.  The maximum number is given by 
+{\tt jpmodel} in {\tt include/parameter.h}.
+\item {\tt \$RUNTIME}: This keyword gives the total simulated time for this 
+run in seconds.
+\item {\tt \$INIDATE}: This keyword is the initial date of the run. It is 
+important if, for example, the SST field coming from a Pacific OGCM 
+needs to be completed with climatological data of the right date.
+\item {\tt \$MODINFO}: indicates if a header must be encapsulated within 
+the field brick, YES or NOT (see \ref{subsubsec_coupling}).
+\item {\tt \$NLOGPRT}: This keyword refers to the amount of output 
+information that will be written to the output file cplout during the
+run. With  {\tt \$NLOGPRT} = 0, there is pratically no output to the
+cplout; this reduces the i/o operations to its minimum.  With {\tt \$NLOGPRT}
+= 1, only some general information on the run, the header of the main 
+routines, and the names of the fields when treated appear in the cplout. 
+Finally, with {\tt \$NLOGPRT = 2}, the full output is generated.
+
+\end{itemize}
+
+The above keywords are the general parameters for the experiment
+composing the first part of the {\tt namcouple}. The second part,
+starting after the keyword \$STRINGS,
+contains all the informations related to the exchange of fields.
+The input for each exchanged field has a similar format whatever field
+is considered: the first three (or four when {\tt \$CHANNEL} = CLIM)
+lines deal with the field parameters,
+while each additional line deals with the parameters required for
+each analysis for the current field. 
+
+A typical first line, for instance for a sea surface temperature
+field, is described here. Note that  all the following 10 words must 
+be present on the first line; the number of blanks
+between the words does not matter (at least one, indeed).
+
+\begin{verbatim}
+SSTOCEAN SSTATMOS  1   86400   5  sstocefl   sstatmfl  35   96  EXPORTED
+\end{verbatim}
+where the different words have the following meaning:
+    \begin{itemize}
+      \item SSTOCEAN : symbolic name for the field on its source grid,
+            here the ocean grid (must not exceed 8 characters).
+      \item SSTATMOS : symbolic name for the field on its target grid,
+            here the atmospheric grid (must not exceed 8 characters).
+      \item 1 : index of the field within the list of all fields 
+            that can possibly be exchanged during an ocean-atmosphere 
+            simulation. See ``Field label definition'' within
+            routine {\tt src/blkdata} for the complete list. This
+            index is used to associate a definition to each field for
+            printing purpose only.
+      \item 86400 : coupling frequency for this field
+            measured in seconds (i.e the frequency at which OASIS
+            reads in the SST field from the ocean model, treats it
+            and writes it out to the atmosphere model). It can be
+            different for different fields.
+      \item 5 : number of analysis to be performed on this field.
+            The maximum number is given by {\tt jpanal} in
+            {\tt include/parameter.h}.  
+      \item sstocefl : name of the input binary file on which the SST
+            is going to be read by OASIS (see \ref{subsub.restart} for
+            a description of the structure of this file). It must
+            be the same as the file name used in the ocean model to write the
+            SST field. Note that there can be an arbitrary number of
+            other fields also read in this input file.
+      \item sstatmfl : name of the output binary file on which the SST
+            is going to be written by OASIS after the interpolation
+            (see \ref{subsub.restart} for
+            a description of the structure of this file). It must
+            be the same as the file name used in the atmosphere model 
+            to read the SST field. Note that there can be an arbitrary
+            number of other fields also written in this output file. 
+      \item 35 : this is the number of the unit connected to the file on
+            which the SST is going to be read by OASIS. Numbers
+            greater than 20 are available in OASIS.
+      \item 96 : this is the number of the unit connected to the file on
+            which the SST is going to be written by OASIS. Numbers
+            greater than 20 are available in OASIS.
+      \item EXPORTED : Flag indicating if the field will be exported 
+            towards another model (EXPORTED) or if it is only an 
+            auxiliary field required for an analysis of another field
+            (AUXILARY).
+    \end{itemize}
+
+
+\vspace{0.4cm}
+
+The second line for the same case would be:
+\begin{verbatim}
+228  94      128  64   topa  at42     1  0  0   0
+\end{verbatim}
+where the different words have the following meaning:
+    \begin{itemize}
+      \item 228 : number of longitudes for the source grid (here
+            the ocean grid)
+      \item 94 : number of latitudes for the source grid (here
+            the ocean grid)
+      \item 128 : number of longitudes for the target grid (here
+            the atmosphere grid)
+      \item 64 : number of latitudes for the target grid (here
+            the atmosphere grid)
+      \item topa : locator prefix (character*4 variable) 
+            used to read the grid parameters of the source
+            grid (here the ocean grid) in files areas, grids, masks
+            (see \ref{subsub.gridauxdata}).
+      \item at42 : locator prefix (character*4 variable)
+            used to read the grid-related data of the target
+            grid (here the atmosphere grid) in files areas, grids, masks
+            (see \ref{subsub.gridauxdata}).
+      \item 1 : index of the sequential position of the model
+            generating the SST field (here the ocean model), if the
+            models run sequentially (i.e if the above {\tt \$SEQMODE} keyword 
+            in {\tt namcouple} is greater than one).
+      \item 0 : flag used to delay the exchange of the given field in
+            the case of models running simultaneously. $0$ means
+            no delay while $N$ means a delay of $N$ times the coupling
+            frequency. For example, if the initial SST field is not
+            available, one can put $N$=1 and this field will not be
+            exchanged at the first coupling timestep, i.e. initially. 
+            If no particular
+            modification is made in the model usually receiving this
+            field (here the atmospher model), this model will pause as
+            no field is available.
+            At the second coupling timestep, the SST field will be
+            given by the ocean model to the atmosphere model through
+            OASIS and the atmosphere model will start running. At that
+            point, however, no updated atmospheric fields are available for
+            the ocean model. OASIS is written so that the ocean model
+            re-uses the initial atmospheric flux fields for that
+            second coupling timestep.
+      \item 0 : flag to compute an extra timestep at the end (1 yes, 0
+            no). If the flag is 1, then the fields written in the
+            output binary files are the ones calculated after this
+            extra timestep.
+      \item 0 : flag to compute the global, land and sea field integrals 
+            within analyses CHECKIN and CHECKOUT (1 yes, 0 no).
+    \end{itemize}
+
+\vspace{0.4cm}
+
+The third line refers to the characteristic in longitude of the source
+and target grids:
+
+\begin{verbatim}
+P  2  P  0
+\end{verbatim}
+where:
+    \begin{itemize}
+      \item P : the source grid characteristic (`P' for periodical 
+            or `R' for regional)
+      \item 2 : the number of overlapping grid points for the source
+            grid (enter `0' for regional grid)
+      \item P : the target grid characteristic (`P' for periodical 
+            or `R' for regional)
+      \item 0 : the number of overlapping grid points for the target
+            grid 
+    \end{itemize}    
+
+\vspace{0.4cm}
+
+When {\tt \$CHANNEL} = CLIM, a fourth line is required that indicates 
+the decomposition strategy: SERIAL(none), ORANGE, APPLE or BOX (see 
+\ref{subsec:clim_para}).
+
+\vspace{0.4cm}
+
+The next line is the list of analyses to be performed for
+this field.
+A typical list of analyses for the SST field is:
+\begin{verbatim}
+     CHECKIN  MOZAIC   BLASNEW   CHECKOUT  REVERSE  GLORED
+\end{verbatim}
+
+Then for each analysis, there is one or more additional input 
+lines describing the analysis parameters, if required.
+For example, the additional line corresponding to the MOZAIC analysis
+giving the mapping filename, the connected unit, the dataset
+identificator and
+the maximum number of overlapped neighbors could be:
+\begin{verbatim}             
+ at31topa      91      2     36 
+\end{verbatim}
+
+A detailed description of the parameter input line(s)  for each 
+analysis is given in the next section.
+
+\end{subsubsection}
+
+\begin{subsubsection}{Input line(s) for each analysis}
+\label{subsubsec_input}
+
+A description of the input line(s) required for each analysis is given
+here, following the order of section \ref{subsec_analyses} in which 
+a more conceptual description of each analysis can be found.
+\begin{itemize}
+\item MASK: The generic input line is as follows:
+\begin{verbatim}
+ # MASK operation
+     $VALMASK 
+\end{verbatim}
+where {\tt \$VALMASK} is the value assigned to all land
+points so they can be detected by the subsequent EXTRAP
+analysis. Note: some problem may arise if the value chosen approches
+the representation capacity of your machine. To make sure, choose a 
+value well outside the range of your field values but not too large
+(e.g. 9999999 is a good choice).
+
+\item INVERT: The generic input line is as follows:
+\begin{verbatim}
+ # INVERT operation
+     $CORLAT  $CORLON 
+\end{verbatim}
+where {\tt \$CORLAT} = NORSUD or SUDNOR and {\tt \$CORLON} = ESTWST or
+WSTEST depending on the orientation of the
+source field in longitude and latitude, respectively.
+
+\item CHECKIN: There is no generic input line. Remember that if the
+last flag of the second input line for field is 1, then the source field
+integral will be performed and printed to the output (see 
+\ref{subsubsec_general}).
+
+\item CORRECT: This analysis requires at least one line of input 
+with two parameters:
+\begin{verbatim}
+ # CORRECT operation 
+     $XMULT  $NBFIELDS
+\end{verbatim}
+where {\tt \$XMULT} is the multiplicative coefficient of the current field, 
+and {\tt \$NBFIELDS}
+the number of additional fields to be combined with the current field.
+For each additional field, an additional input line is required:
+\begin{verbatim}
+# nbfields lines
+     $CLOC  $AMULT  $CFILE  $NUMLU
+...
+\end{verbatim}
+where {\tt \$CLOC} and {\tt \$AMULT}, {\tt \$CFILE} and {\tt \$NUMLU} are
+respectively the symbolic name and the multiplicative coefficient of
+the additional field, and the file name and associated logical unit 
+on which it is going to be read.
+
+\item EXTRAP: The generic input line depends on the extrapolation
+method chosen. For \$CMETHOD is NINENN, the line is:
+\begin{verbatim}
+ # EXTRAP operation for $CMETHOD = NINENN
+     $CMETHOD  $NVOISIN  $NIO  $NID
+\end{verbatim}
+where {\tt \$CMETHOD} = NINENN for a N-nearest-neighbor extrapolation method; 
+{\tt \$NVOISIN} is the minimum number of closest neighbors required 
+ to perform the extrapolation (with a maximum of
+4); {\tt \$NIO} is the flag that indicates whether the 
+weight-address-and-iteration-number dataset will be
+calculated and written by OASIS ({\tt \$NIO}= 1), or only read 
+({\tt \$NIO}= 0) in
+file  {\em nweights}; 
+{\tt \$NID} is the identificator for the relevant dataset 
+of weights and addresses and iteration numbers within {\em nweights}, 
+based on all different 
+datasets in the EXTRAP/NINENN analyses in the present coupling. Note
+that an EXTRAP/NINENN analysis is automatically performed within 
+GLORED analysis but the corresponding datasets have to be distinct;
+this is automatically checked by OASIS at the beginning of the run
+ (see also the description of the input line for GLORED).
+
+For \$CMETHOD is WEIGHT, the line is:
+\begin{verbatim}
+ # EXTRAP operation for $CMETHOD = WEIGHT
+     $CMETHOD  $NVOISIN  $CFILE  $NUMLU  $NID
+\end{verbatim}
+ where {\tt \$CMETHOD} = WEIGHT for a N-weighted-neighbor
+extrapolation method; \$NVOISIN is the maximum number of neighbors
+required by the 
+extrapolation operation (the maximum possible number is given by the
+value of {\tt jpext} in {\tt include/parameter.h}). 
+{\tt \$CFILE} and {\tt \$NUMLU} are the grid-mapping file name and 
+associated logical unit, giving for each grid point the respective 
+weights and addresses of the grid points used in the extrapolation
+(see \ref{subsub.analaux}) for the structure of this file). 
+{\tt \$NID} is the identificator for the relevant grid-mapping dataset 
+ within the file build by OASIS based on all
+the grid-mapping datasets used in all WEIGHT analyses in the present
+coupling. For example, if
+one grid-mapping dataset is used in a WEIGHT analysis, another
+grid-mapping dataset is used in another WEIGHT analysis performed
+on another field, all corresponding {\tt \$NID} have to be different
+even if the grid-mapping files they come from are different. Note that
+the maximum possible number of different WEIGHT extrapolations is
+given by the value of {\tt jpnbn} in {\tt include/parameter.h}.
+
+\item REDGLO: The generic input line is as follows:
+\begin{verbatim}
+# REDGLO operation
+     $NNBRLAT  $CDMSK
+\end{verbatim} 
+where {\tt \$NNBRLAT} has to be NOxxx WHERE xxx is half the number of 
+latitude circles of the gaussian grid. For example, for a T42 with 64 
+latitude circles, one must write ``NO32''. In the current
+version, it can be either NO16, NO24, NO32, NO48, NO80, NO160; other
+values can be easily added by defining the corresponding reduced grid data in
+{\tt src/blkdata.f} and modifying {\tt src/preproc.f} and 
+{\tt include/gauss.h}). {\tt \$CDMSK} is the
+flag indicating if sea values have to be  extended to continental areas 
+using the reduced grid sea-land mask {\tt maskr} (see \ref{subsub.gridauxdata}) ({\tt \$CDMSK = SEALAND}) or if the opposite has
+to be performed ({\tt \$CDMSK = LANDSEA}). If {\tt \$CDMSK =
+NOEXTRAP}, then no extrapolation is performed.
+
+\item BLASOLD: This analysis requires at least one line of input 
+with two parameters:
+\begin{verbatim}
+ # BLASOLD operation 
+     $XMULT     $NBFIELDS
+\end{verbatim}
+where {\tt \$XMULT} is the multiplicative coefficient of the current field, 
+and {\tt \$NBFIELDS}
+the number of additional fields to be combined with the current
+field. The maximum possible number is defined by {\tt jpcomb} in {\tt
+include/parameter.h}.
+ For each additional field, an additional input line is required:
+\begin{verbatim}
+# nbfields lines
+     $CNAME  $AMULT
+...
+\end{verbatim}
+where {\tt \$CNAME} and {\tt \$AMULT} are the symbolic name and the 
+multiplicative coefficient of the additional field. Note: to add a
+constant value to the original field, put {\tt \$XMULT} = 1, {\tt
+\$NBFIELDS} = 1, {\tt \$CNAME} = CONSTANT, {\tt \$AMULT} = value to
+add.
+
+
+\item INTERP: This analysis requires one input line with at least five
+parameters. Depending on the interpolation method, 3 or 2 or 0 
+additional parameters are needed. 
+
+\begin{enumerate}
+\item If the method chosen is the BILINEAR or the BICUBIC or the NNEIBOR
+interpolation, the library used is /lib/fscint and the input line 
+is as follows:
+\begin{verbatim}
+ # BILINEAR or BICUBIC or NNEIBOR interpolation
+     $CMETHOD  $CGRDSRC  $CFLDTYP 
+\end{verbatim}
+where {\tt \$CMETHOD} = BILINEAR or BICUBIC or NNEIBOR, 
+{\tt \$CGRDSRC} is the source grid type,
+(either A, B, G, L, Y, or Z, see appendix \ref{subsec_gridtypes}), and {\tt \$CFLDTYP} the field type (SCALAR or VECTOR).
+   
+\item If the method chosen is the SURFMESH interpolation, the library
+/lib/anaism is used and  the input line is
+as  follows:
+\begin{verbatim}
+ # SURFMESH interpolation
+$CMETHOD $CGRDSRC $CFLDTYP $NID $NVOISIN $NIO  
+\end{verbatim}
+where {\tt \$CMETHOD} = SURFMESH, {\tt \$CGRDSRC} and {\tt \$CFLDTYP} is
+as for the BILINEAR interpolation,
+{\tt \$NID} is the identificator for the relevant dataset 
+of weights and addresses within the file {\em mweights} 
+build by OASIS based on all
+weight-and-addresse datasets in all SURFMESH analyses in the present
+coupling. This weight-and-addresse dataset will be
+calculated by OASIS if {\tt \$NIO}= 1, or will be only read by OASIS if 
+{\tt \$NIO}= 0. {\tt \$NVOISIN} is the maximum number of neighbors used in
+the interpolation; the maximum possible number is given by {\tt jpwoa
+} in {\tt include/parameter.h}. Note that
+the maximum number of different SURFMESH interpolations is given by the
+value of {\tt jpnfm} in {\tt include/parameter.h}.
+
+\item If the method chosen is the GAUSSIAN interpolation, the library
+/lib/anaisg is used and the input line is
+as  follows:
+\begin{verbatim}
+ # GAUSSIAN interpolation
+$CMETHOD $CGRDSRC $CFLDTYP $NID $NVOISIN $VAR $NIO
+\end{verbatim}
+where {\tt \$CMETHOD} = GAUSSIAN, {\tt \$CGRDSRC} and {\tt \$CFLDTYP} 
+are as for the BILINEAR interpolation,
+{\tt \$NID} is the identificator for the relevant dataset 
+of weights and addresses within the file {\em gweights} 
+build by OASIS based on all
+weight-and-addresse datasets in all GAUSSIAN analyses in the present
+coupling. This weight-and-addresse dataset will be
+calculated by OASIS if {\tt \$NIO}= 1, or will be only read by OASIS if 
+{\tt \$NIO}= 0. {\tt \$NVOISIN} is the maximum number of neighbors used in
+the interpolation; the maximum possible number is given by {\tt jpnoa
+} in {\tt include/parameter.h}. {\tt \$VAR} is the variance of the 
+gaussian function to be used in the interpolation (has to be given as
+a REAL number, e.g 2.0 and not 2). Note that
+the maximum number of different GAUSSIAN interpolations is given by the
+value of {\tt jpnfg} in {\tt include/parameter.h}.
+\end{enumerate}
+\item MOZAIC: This analysis requires one input line:
+\begin{verbatim}
+# MOZAIC operation
+     $CFILE  $NUMLU  $NID  $NVOISIN
+\end{verbatim}
+where {\tt \$CFILE} and {\tt \$NUMLU} are the grid-mapping file name and 
+associated logical unit on which the grid-mapping dataset is going to be
+read (see \ref{subsub.analaux} for the structure of this file), 
+{\tt \$NID} the identificator
+for this grid-mapping dataset 
+within the file build by OASIS based on all
+the grid-mapping datasets used in all MOZAIC analyses in the present
+coupling. {\tt \$NVOISIN} is the maximum number of target grid points
+use in the mapping; the maximum possible number is given by {\tt jpmoa
+} in {\tt include/parameter.h}. Note that
+the maximum number of different MOZAIC interpolations is given by the
+value of {\tt jpnfp} in {\tt include/parameter.h}.
+
+
+\item NOINTERP: There is no generic input line.
+
+\item FILLING: This analysis requires one input line with 3, 4 or 6 
+arguments. 
+
+\begin{enumerate}
+\item If FILLING performs the blending of a
+regional data set with a global one for the Sea Ice Extent, the
+3-argument input line is:
+\begin{verbatim}
+# Sea Ice Extent FILLING operation
+     $CFILE  $NUMLU  $CMETHOD
+\end{verbatim} 
+where {\tt \$CFILE} is the file name for the global data set, {\tt \$NUMLU}
+the associated logical unit. {\tt \$CMETHOD}, the FILLING technique,
+is a character variable of length 8: the first 3 characters are either SMO,
+smooth filling, or RAW, no smoothing ; the next three
+characters must be  SIE for a Sea Ice Extent filling operation;
+the last two define the time characteristics of the global data file, 
+respectively MO, SE and AN for interannual monthly, climatological 
+monthly and yearly. Note that in all cases, the global data file has
+to be a Sea Surface Temperature field in Celsius degrees.
+
+\item If FILLING performs the blending of a
+regional data set with a global one for the Sea Surface Temperature
+without any smoothing, the 4-argument input line is:
+\begin{verbatim}
+#Sea Surface Temperature FILLING operation without smoothing
+     $CFILE  $NUMLU  $CMETHOD  $NFCOAST
+\end{verbatim} 
+where {\tt \$CFILE}, {\tt \$NUMLU} are as for the SIE filling. In this
+case however, {\tt \$CMETHOD(1:3)} = RAW, {\tt \$CMETHOD(4:6)} = SST, and the last two
+characters define the time characteristics of the global data file, as
+for the SIE filling. {\tt \$NFCOAST} is  
+the flag for the calculation of the coastal correction ( 0 no, 1 yes)
+(see FILLING in \ref{subsubsec_interp}).
+
+\item If FILLING performs the blending of a
+regional data set with a global one for the Sea Surface Temperature
+with smoothing, the 6-argument input line is:
+\begin{verbatim}
+#Sea Surface Temperature FILLING operation with smoothing
+     $CFILE  $NUMLU  $CMETHOD  $NFCOAST  $CNAME  $NUNIT
+\end{verbatim}  
+where {\tt \$CFILE}, {\tt \$NUMLU} and {\tt \$NFCOAST} are as for the SST
+filling without smoothing. In this
+case, {\tt \$CMETHOD(1:3)} = SMO, {\tt \$CMETHOD(4:6)} = 'SST', 
+and the last two
+characters define the time characteristics of the global data file, as
+for the SIE filling. {\tt \$CNAME} is the symbolic name for the flux 
+correction term that will be calculated by OASIS and {\tt \$NUNIT} 
+the logical unit on which it is going to be written (see FILLING 
+in \ref{subsubsec_interp}). 
+
+\end{enumerate}
+The parameters defining the smoothing are all initialized
+in {\tt src/blkdata.f} and their definition is given in {\tt
+include/smooth.h}. 
+
+The smoothing band at the southern boundary is
+defined by {\tt nsltb} (outermost point) and {\tt nslte} (innermost
+point); the smoothing band at the northern boundary is
+defined by {\tt nnltb} (outermost point) and {\tt nnlte} (innermost
+point). The parameter {\tt qalfa} controls the weights given to the
+regional and to the global fields in the linear interpolation. {\tt
+qalfa} has to be $1/(nslte-nsltb)$ or $1/(nnltb-nnlte)$. For the 
+outermost points ({\tt nsltb} or {\tt nnltb}) in the smoothing band, 
+the weight given to the regional and global fields will respectively 
+be 0 and 1; for the innermost points ({\tt nslte} or {\tt nnlte}) in
+the smoothing band, 
+the weight given to the regional and global fields will respectively 
+be 1 and 0; within the smoothing band, the weights will be a linear 
+interpolation of the outermost and innermost weights. 
+
+The smoothing band at the western and eastern boundary will be a band
+of {\tt nliss} points following the coastline. To calculate this band,
+OASIS needs {\tt nwlgmx}, the longitude index of the eastest 
+point on the western coastline and {\tt nelgmx}, the longitude index 
+of the westest point on the eastern coastline.The parameter 
+{\tt qbeta} controls the weights given to the
+regional and to the global fields in the linear interpolation. {\tt
+qbeta} has to be $1/(nliss-1)$. The weights given to the regional and
+global fields in the smoothing bands will be calculated as for the 
+southern and northern bands.  
+
+\item CONSERV: This analysis requires one input line with one argument:
+\begin{verbatim}
+# CONSERV operation
+     $CMETHOD
+\end{verbatim}
+where {\tt \$CMETHOD} is the conservation method required. In this
+version, only global flux conservation can be performed. Therefore
+{\tt \$CMETHOD} must be GLOBAL.
+   
+\item SUBGRID: This analysis requires one input line with 7 or 8
+arguments depending on the type of subgrid interpolation. Note that
+the maximum number of different SUBGRID interpolations is given by the
+value of {\tt jpnfs} in {\tt include/parameter.h}.
+
+\begin{enumerate}
+\item If the
+the SUBGRID operation is performed on a solar flux, the 7-argument 
+input line is:
+\begin{verbatim}
+# SUBGRID operation with $SUBTYPE=SOLAR 
+  $CFILE  $NUMLU  $NID  $NVOISIN  $SUBTYPE  $CCOARSE  $CFINE
+\end{verbatim}
+where {\tt \$CFILE} and {\tt \$NUMLU} are the subgrid-mapping file name and 
+associated logical unit (see \ref{subsub.analaux} for the structure 
+of this file); 
+{\tt \$NID} the identificator for this subgrid-mapping dataset 
+ within the file build by OASIS based on all
+the subgrid-mapping datasets used in all SUBGRID analyses in the present
+coupling; {\tt \$NVOISIN} is the maximum number of target grid points
+use in the subgrid-mapping (the maximum possible number is given by 
+{\tt jpsoa} in {\tt include/parameter.h}); {\tt \$SUBTYPE} is the type
+of subgrid
+interpolation (either SOLAR or NONSOLAR, SOLAR in this case); 
+{\tt \$CCOARSE} is the auxiliary field name on the coarse grid
+(corresponding to $\alpha$ in \ref{subsubsec_cooking}) and {\tt
+\$CFINE} is the auxiliary field name on fine grid (corresponding 
+to $\alpha_i$ in \ref{subsubsec_cooking}). These two fields needs to
+be exchanged between their original model and OASIS, at least as 
+auxiliary fields (see \ref{subsubsec_general}). 
+This analysis is performed on the fine 
+grid with a
+grid-mapping type of interpolation based on the {\tt \$CFILE} file.
+
+\item If the
+the SUBGRID operation is performed on a nonsolar flux, the 8-argument 
+input line is:                      
+\begin{verbatim}
+# SUBGRID operation with $SUBTYPE=NONSOLAR
+  $CFILE $NUMLU $NID $NVOISIN $SUBTYPE $CCOARSE $CFINE $CDQDT
+\end{verbatim}
+where {\tt \$CFILE},  {\tt \$NUMLU}  {\tt \$NID}  {\tt \$NVOISIN} 
+are as for a solar subgrid interpolation; {\tt \$SUBTYPE} has now to be
+NONSOLAR; {\tt \$CCOARSE} is the auxiliary field name on the coarse grid
+(corresponding to $T$ in \ref{subsubsec_cooking}) and {\tt
+\$CFINE} is the auxiliary field name on fine grid (corresponding 
+to $T_i$ in \ref{subsubsec_cooking}); the additional argument {\tt \$CDQDT} is
+the coupling ratio on the coarse grid (corresponding 
+to $\frac{\partial F}{\partial T}$ in \ref{subsubsec_cooking})
+These two fields needs to
+be exchanged between their original model and OASIS as 
+auxiliary fields (the last flag on the first line for these fields
+needs to be set to AUXILARY). 
+This operation is performed on the fine grid  with a
+grid-mapping type of interpolation based on the {\tt \$CFILE} file.
+
+\end{enumerate}
+\item BLASNEW: This analysis requires the same input line as BLASOLD.
+
+\item REVERSE: This analysis requires the same input line as INVERT,
+with {\tt \$CORLON} and {\tt \$CORLAT} being now the orientation of the
+receiving model grid.
+
+\item CHECKOUT: There is no generic input line. Remember that if the
+last flag of the second input line for field is 1, then the source field
+integral will be performed and printed to the output (see 
+\ref{subsubsec_general}).
+
+\item GLORED: The generic input line is as follows:
+\begin{verbatim}
+# GLORED operation
+     $NNBRLAT  $NVOISIN   $NIO   $NID
+\end{verbatim} 
+where {\tt \$NNBRLAT} has to be NOxxx WHERE xxx is half the number of 
+latitude circles of the gaussian grid. For example, for a T42 with 64 
+latitude circles, one must write ``NO32''. In the current
+version, it can be either NO16, NO24, NO32, NO48, NO80, NO160; other
+values can be easily added by defining the corresponding reduced grid data in
+{\tt src/blkdata.f} and modifying {\tt src/preproc.f} and 
+{\tt include/gauss.h}). The next 3
+parameters refer to the NINENN-type extrapolation always performed
+within GLORED. \$NVOISIN is the MINIMUM number of neighbors required
+(among the 8 closest) to perform the extrapolation (with a maximum of
+4); \$NIO is the flag that indicates whether the 
+weight-addresse-and-iteration-number dataset will be calculated by
+OASIS and written to file {\em nweights} (\$NIO= 1), or only read in file
+{\em nweights} (\$NIO= 0); \$NID is the identificator for the relevant dataset
+ within the file {\em nweights}, based on all different 
+weight-addresse-and-iteration-number datasets in the NINENN analyses
+in the present coupling (within EXTRAP and GLORED analyses); note
+that OASIS automatically checks at the beginning of the run that the
+datasets for EXTRAP are distinct from the datasets for GLORED. The
+value assigned to all land points before interpolation is given
+by {\tt amskred} in {\tt src/blkdata.f}; as for the {\tt \$VALMASK}
+in MASK analysis, it has to be chosen well outside the range of your
+field values but not too large to avoid machine representation
+capacity problems. 
+\end{itemize}
+
+\end{subsubsection}
+
+\end{subsection}

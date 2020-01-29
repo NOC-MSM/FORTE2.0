@@ -1,0 +1,146 @@
+\begin{subsection}{The communication techniques}
+\label{subsec_communication}
+
+
+Four techniques of communication are available in OASIS 2.3 to 
+exchange the coupling fields and some initial informations between the
+models and the coupler in a synchronized way: PIPE ({\tt lib/pipe}
+library), CLIM ({\tt lib/clim} library), SIPC ({\tt lib/svipc} and
+{\tt lib/sipc} library) or GMEM ({\tt lib/sxgmem})
+(see the /toyclim, /toypipe, /toysvipc or /toysxgmem directory for a 
+practical example of each communication technique).
+The technique used is defined by the value of {\tt \$CHANNEL } in the
+{\em namcouple} (see \ref{subsec_input}). Refer to Appendix 
+\ref{app_communication} for a detailed description of each technique.
+
+Note that OASIS can also be run in an interpolator-only mode which means it
+can be used to interpolate fields without any model running.
+To use this option, the input field {\tt \$CHANNEL} should be set to NONE.
+In this case, OASIS reads the usual {\tt namcouple} file, skips all the
+communication with the models, performs its initial timestep with
+the complete set of analyses described in the {\em namcouple} file and  
+produces binary files which contain the interpolated fields. This is
+convenient as it allows one to test interpolation options without
+having to run the whole coupled system.
+
+\begin{subsubsection}{Exchange of coupling fields}
+\label{subsubsec_coupling}
+
+The modularity in the coupling field I/O part of OASIS is based on 
+the following concept: to each coupling field is associated what
+we call an input channel (to import the field) and an output channel
+(to export the field). After reading the {\em namcouple}, 
+OASIS knows when 
+(i.e at which iteration) it has to perform send/receive operations 
+to/from a given channel. OASIS does not know which other process is 
+going to read or write on a given channel. These send/receive
+operations are performed in the {\tt givfld} and {\tt getfld} routines
+and in the subroutines called therein which depend on the communication
+technique chosen.
+Within the PIPE, SIPC and GMEM techniques, the fields are exchanged with or 
+without an extended header, according
+to the keyword {\tt \$MODINFO} from the input file {\tt namcouple} ({\tt YES}
+or {\tt NOT}). See routines {\tt locreadh} and {\tt locwrith} for an
+example on how the extended header are read. The 
+extended header comprises the job name (read as a character variable 
+of length 3) and 3 integer variables (e.g. the initial date,
+the time since start, the iteration number).  
+
+\vspace{0.4cm}
+
+In the PIPE technique working on CRAY machines, a channel is a CRAY 
+named pipe associated to a regular
+binary file. The pipe is used to inform the model or the coupler
+that the coupling field has been written in the associated binary
+file and is ready to be read. 
+
+\vspace{0.4cm}
+
+The CLIM interface is built upon the message passing library PVM 3.3
+or later \cite{ecmwf}. In this technique, each channel is a ``port'' using a Unix
+socket. When used with a monotask model, each port is
+linked once to OASIS and once to another model. But CLIM can also
+handle a parallel framework in which the globality of each coupled
+field may not be available on one processor. In this case, CLIM offers
+an elegant solution through the ``multiple link-single port''
+paradigm: all the parallel processes of the model define an identical
+port, but with a different parallel data decomposition, while OASIS
+defines its matching port as usual. 
+The CLIM technique can be used to run the models in a distributed environment,
+e.g. an AGCM on a Cray C98, an OGCM on a Cray T3E and OASIS on a 
+front-end workstation \cite{cassou}.
+
+\vspace{0.4cm}
+In the SIPC technique, the communication is based on the library 
+{\tt lib/svipc/svipc.c} written by Sami Saarinen from the ECMWF. This library 
+uses the System V Inter Process Communication ({\tt SVIPC}) Unix
+possibilities. {\tt SVIPC} allows two or more processes to share
+memory, and consequently the data contained there, on a segment basis.
+In the SIPC technique, a channel is therefore a SHared-Memory (SHM)
+segment. The synchronization of reading and writing in the SHM segment
+is ensured by semaphores associated to each segment.
+
+\vspace{0.4cm}
+In the GMEM technique, the communication is based on the library 
+{\tt lib/sxgmem/svipc.c} written by Hubert Ritzdorf from NEC CCRLE. 
+This library uses the NEC SX Global MEMory ({\tt SXGMEM}) 
+Inter Process Communication
+facility. {\tt SXGMEM} allows two or more processes to share global
+memory space , and consequently the data contained there, on a segment basis.
+In the GMEM technique, a channel is therefore a Global-MEMory (GMEM)
+segment. The synchronization of reading and writing in the GMEM segment
+is ensured by explicit locking done at record level and is fully
+transparent to the user. Note that connection to the Message Passing
+Interface (MPI) daemon is mandatory in order to use {\tt SXGMEM}.
+.
+\end{subsubsection}
+
+\begin{subsubsection}{Process management}
+\label{subsubsec_process}
+
+An important aspect, dependent on the communication technique,
+is how OASIS manages the different processes (models) being
+coupled. In fact, the coupler must be able to stop the whole
+simulation if one of the models dies following a fatal error, and has to
+ensure the correct ending of the simulation. 
+
+\vspace{0.4cm}
+
+In the SIPC and PIPE techniques,
+OASIS and the models have a parent-children relation in the UNIX sense.
+ Within these two techniques, signal handling aiming at trapping a
+child death is implemented in the initialization phase of the
+coupling (i.e. in {\tt inicmc} calling {\tt chksgc} calling either
+{\tt signal} for SIPC, or {\tt fsigctl} for PIPE). If one of its child
+process (model) dies, OASIS is informed, kills the other
+processes (routine {\tt ferror}), and aborts (routine {\tt
+halte}). At the last iteration, OASIS switches this signal
+handling in routine {\tt modsgc}. Also, to ensure the correct 
+ending of the simulation, OASIS waits in routine {\tt waitpc} 
+for all models completion. In the SIPC, GMEM and PIPE techniques, 
+OASIS will also abort if a floating point error occurs within 
+itself (routine {\tt getfpe}).
+
+\vspace{0.4cm}
+
+In the GMEM case, OASIS and the models are launched with the mpisx
+command (necessary as they contain MPI calls). The mpisx command uses
+the return code of any executable to decide
+whether the whole application must be killed or not (the executables 
+are given as argument to the mpisx command). For any value
+different from zero, mpisx clears the whole application. The
+termination phase is similar to the SIPC case: OASIS waits in routine
+{\tt waitpc} for all other model {\tt SXGMEM} exit signal.
+
+\vspace{0.4cm}
+
+In the CLIM technique, each model and OASIS are independent Unix
+processes without any hierarchical relation. In this technique, no
+deadlock (all models blocked waiting to receive something) is possible
+as the receive function is always used with a time-out control:
+if a coupling field is not
+available after a {\tt ntiout} period (defined in routine {\tt
+blkdata.f}), OASIS prints a message to the PVM trace file {\tt
+oasis.prt} and goes on.
+\end{subsubsection}
+\end{subsection}

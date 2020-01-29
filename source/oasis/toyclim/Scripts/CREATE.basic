@@ -1,0 +1,20 @@
+#!/bin/csh -f
+# Script to establish an OASIS run_dir with a single command
+
+set RUNNAME = $1
+set DIR = ../../../../run_dirs/oasis/wkdir.$RUNNAME
+set WKB = ../../../source/oasis/toyclim/wkdir.basic
+
+if ( ! -e ../../../../run_dirs ) mkdir ../../../../run_dirs
+if ( ! -e ../../../../run_dirs/oasis ) mkdir ../../../../run_dirs/oasis
+if ( -e $DIR ) rm -fr $DIR
+
+mkdir $DIR
+ln -s $WKB/areas $DIR/areas
+ln -s $WKB/at31topa $DIR/at31topa
+ln -s $WKB/grids $DIR/grids
+ln -s $WKB/maskr $DIR/maskr
+ln -s $WKB/masks $DIR/masks
+ln -s $WKB/runoff31 $DIR/runoff31
+ln -s $WKB/oasis $DIR/oasis
+ln -s $WKB/namcouple_newtile.template $DIR/namcouple_newtile.template

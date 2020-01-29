@@ -1,0 +1,191 @@
+*IDENT CHGREADNL
+*/ =======================================================
+*/ Marc 19 October 
+*/ When the number of levels (NL) is different to the 22
+*/ levels in the input data. This was previously done 
+*/ routines called something like T31L35.upd.
+*/ =======================================================
+*/ Modify restart code, reading from T21L22 history file and
+*/        interpolating to L > 22.
+*/ -------------------------------------------------------
+*B READCOEF.29
+*/ Need to add before the Passed variables
+*CALL BLANK
+*B READCOEF.63
+*/ Insert before the `Loop variables'
+      INTEGER, PARAMETER :: NLIN=22
+      INTEGER :: NLIN2
+*D READCOEF.95
+*/ Replacing         nLevels=(3+NTRACO)*NL+1
+         nLevels=(3+NTRACO)*NLIN+1
+*D READCOEF.98
+*/ Replacing         nLevels=(6+2*NTRACO)*NL+2
+         nLevels=(6+2*NTRACO)*NLIN+2
+*B READCOEF.222
+*/ Added before:        LL=0
+      NLIN2=MIN(NLIN,NL)
+*D READCOEF.224,232
+*/ Replace the lines:
+*/         Z(1:NNTxx(iCol),1:MMTyy(iRow),:,:)=
+*/     &        HoldVar(1:NNTxx(iCol),1:MMTyy(iRow),:,LL+1:LL+NL)
+*/         LL=LL+NL
+*/         D(1:NNTxx(iCol),1:MMTyy(iRow),:,:)=
+*/     &        HoldVar(1:NNTxx(iCol),1:MMTyy(iRow),:,LL+1:LL+NL)
+*/         LL=LL+NL
+*/         T(1:NNTxx(iCol),1:MMTyy(iRow),:,:)=
+*/     &        HoldVar(1:NNTxx(iCol),1:MMTyy(iRow),:,LL+1:LL+NL)
+*/         LL=LL+NL
+         Z(1:NNTxx(iCol),1:MMTyy(iRow),:,1:NLIN2)=
+     &        HoldVar(1:NNTxx(iCol),1:MMTyy(iRow),:,LL+1:LL+NLIN2)
+         LL=LL+NLIN
+         D(1:NNTxx(iCol),1:MMTyy(iRow),:,1:NLIN2)=
+     &        HoldVar(1:NNTxx(iCol),1:MMTyy(iRow),:,LL+1:LL+NLIN2)
+         LL=LL+NLIN
+         T(1:NNTxx(iCol),1:MMTyy(iRow),:,1:NLIN2)=
+     &        HoldVar(1:NNTxx(iCol),1:MMTyy(iRow),:,LL+1:LL+NLIN2)
+         LL=LL+NLIN
+*D READCOEF.236,238
+*/ Replace the lines:
+*/               TRA(1:NNTxx(iCol),1:MMTyy(iRow),:,:,KK)=
+*/     &              HoldVar(1:NNTxx(iCol),1:MMTyy(iRow),:,LL+1:LL+NL)
+*/               LL=LL+NL
+               TRA(1:NNTxx(iCol),1:MMTyy(iRow),:,1:NLIN2,KK)=
+     &              HoldVar(1:NNTxx(iCol),1:MMTyy(iRow),:,LL+1:LL+NLIN2)
+               LL=LL+NLIN
+*I READCOEF.244
+*/ Insert after lines:
+*/         SP(1:NNTxx(iCol),1:MMTyy(iRow),:)=
+*/     &        HoldVar(1:NNTxx(iCol),1:MMTyy(iRow),:,LL+1)
+*/         LL=LL+1
+         IF (NL.GT.22) THEN
+            !-----------------------------------------------------
+            ! Data read in above is hardwired for nl=22.
+            !-----------------------------------------------------
+            call iniint(z)        ! Routine to interpolate in the
+                                  ! vertical.
+            call iniint(d)
+            call iniint(t)
+            if (ntraco.gt.0) then
+               do kk=1,ntraco
+                  call iniint(tra(1,1,1,1,kk))
+               enddo
+            endif 
+         elseif (nl.eq.22.and..not.lstretch) then
+            print*,'*** WARNING ***'
+            print*,'Be aware that LSTRETCH is .F. but initial'
+            print*,' data read in are stretched.'
+         elseif (nl.lt.22) then
+            print*,'*** PROBLEMS *** NL IS LESS THAN 22'
+            print*,'(Initial data read in are for nl=22)'
+            stop
+         endif
+*DECK INIINT
+!=====================================================
+! SMR 26-03-97 Routine to interpolate initial data to model
+!              vertical grid if nl is greater than 22
+!              (initial data read in is for nl=22).
+!=====================================================
+      subroutine iniint(zdtdum)
+      IMPLICIT NONE
+*CALL PARAM1
+*CALL PARAM2
+*CALL PARAM3
+*CALL BLANK
+*CALL SPECTR
+*CALL MPIDECK
+!-----------------------------------------------------
+! Passed variable
+!-----------------------------------------------------
+! Spectral coefficient that needs interpolating
+      complex :: zdtdum(NNTx,MMTy,NHEM,NL)
+!-----------------------------------------------------
+! Local variables
+!-----------------------------------------------------
+! Pressure in mb of current level being interpolated.
+      real :: press
+! Levels in mb of history file read in as initial data in
+! INISTR (molested Mike's code). History file was nl=22 
+! (a la smr).
+      real :: hislev(22)
+! Copy of spectral coefficients array as these will be
+! molested.
+      complex :: zdtcop(NNTx,MMTy,NHEM,NL)
+! Loop variables
+      INTEGER :: IHEM, IM, IN, L, LO 
+!-----------------------------------------------------
+! Pressure levels for hislev
+!-----------------------------------------------------
+      data hislev/1.0,5.5,14.0,28.0,50.0,81.5,118.0,154.0,189.5,
+     &            224.5,259.5,296.5,338.0,385.5,441.5,508.0,584.0,
+     &            668.0,756.0,841.0,916.5,975.5/
+!-----------------------------------------------------
+! Copy zdtdum to zdtcop.
+!-----------------------------------------------------
+      zdtcop(:,:,:,:)=zdtdum(:,:,:,:)
+!-----------------------------------------------------
+! Start of interpolation.
+! Loop over model levels.
+!-----------------------------------------------------
+      do l=1,nl 
+         !-----------------------------------------------------
+         ! Pressure in mb of current (being interpolated)
+         !-----------------------------------------------------
+         press=sigma(l)*1000.0
+         !-----------------------------------------------------
+         ! Loop over history levels.
+         !-----------------------------------------------------
+         do lo=1,21
+            if (press.lt.1.0) then
+               !-----------------------------------------------------
+               ! Top
+               !-----------------------------------------------------
+               DO IHEM=1,NHEM
+                  DO IM=1,MMTyy(iRow)
+                     DO IN=1,NNTxx(icol)
+                        zdtdum(IN,IM,IHEM,NL)=zdtcop(IN,IM,IHEM,1)
+                     ENDDO
+                  ENDDO
+               ENDDO
+            elseif (press.eq.hislev(lo)) then
+               !-----------------------------------------------------
+               ! Atually at a history level.
+               !-----------------------------------------------------
+               DO IHEM=1,NHEM
+                  DO IM=1,MMTyy(iRow)
+                     DO IN=1,NNTxx(icol)
+                        ZDTDUM(IN,IM,IHEM,L)=ZDTCOP(IN,IM,IHEM,LO)
+                     ENDDO
+                  ENDDO
+               ENDDO
+            elseif (press.gt.hislev(lo).and.press.lt.hislev(lo+1))
+     &          then 
+               !-----------------------------------------------------
+               ! Interpolate
+               !-----------------------------------------------------
+               DO IHEM=1,NHEM
+                  DO IM=1,MMTyy(iRow)
+                     DO IN=1,NNTxx(icol)
+		        ZDTDUM(IN,IM,IHEM,L)=ZDTCOP(IN,IM,IHEM,LO) +
+     & 		         ( ZDTCOP(IN,IM,IHEM,LO+1) - 
+     &                    ZDTCOP(IN,IM,IHEM,LO) ) *
+     &                   ( LOG(PRESS)-LOG(hislev(lo)) ) /
+     &                   ( LOG(hislev(lo+1)) - LOG(hislev(lo)) )
+                     ENDDO
+                  ENDDO
+               ENDDO
+            elseif (press.ge.975.5) then          ! Bottom
+               !-----------------------------------------------------
+               ! Bottom
+               !-----------------------------------------------------
+               DO IHEM=1,NHEM
+                  DO IM=1,MMTyy(iRow)
+                     DO IN=1,NNTxx(icol)
+                        ZDTDUM(IN,IM,IHEM,L)=ZDTCOP(IN,IM,IHEM,22)
+                     ENDDO
+                  ENDDO
+               ENDDO
+            endif
+         enddo
+      enddo
+      return
+      end

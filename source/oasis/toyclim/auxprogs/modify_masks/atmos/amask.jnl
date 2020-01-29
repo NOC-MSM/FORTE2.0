@@ -1,0 +1,8 @@
+! NOAA/PMEL TMAP
+! Program FERRET  
+! Version 5.22 - 07/27/00
+! 19-Apr-06 09:27     
+
+use "cdf_ouput.nc"
+file/var=amask/grid=GGB2 fort.41
+shade amask; go land

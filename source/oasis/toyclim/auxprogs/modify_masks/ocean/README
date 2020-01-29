@@ -1,0 +1,37 @@
+=============================================================================
+To modify the land mask to your liking do the following:
+
+1) First compile the files to reformat the moma-formatted land mask
+   ifort -o readkmtc readkmtc.f
+   ifort -o writekmtc writekmtc.f
+
+2) You need a copy of the original land mask to get started -
+   call it ocean.kmtc.test00
+
+3) Run readkmtc and input 00 at the prompt (creates files fort.17 fort.18 and fort.19)
+   fort.19 is a ferret-readable version of the landmask from ocean.kmtc.test00
+   fort.17 and fort.18 are human-readable versions of the landmask from ocean.kmtc.test00
+
+4) Run ferret and type in "go omask" at the prompt
+   omask.jnl is a ferret script which takes the fort.19 data and plots it along
+   with the "real" coastline. You can look at the plot and decide which gridpoints
+   need changing.
+
+5) Edit fort.17 and/or fort.18 to create the desired effect.
+
+6) Run writekmtc entering 01 at the prompt
+   (creates file ocean.kmtc.test01)
+
+7) Run readkmtc again (enter 01 at the prompt) - 
+   overwrites fort.17, 18 and 19.
+
+8) Run ferret and type in "go omask" at the prompt to see a plot of the changes
+
+Now go back to step 5 and iterate until satisfied remembering to increment the
+version number (01 in steps 5 to 7 above) each time
+
+
+Bathymetry from the old mask can be added to the new mask using bathkmtc.f.
+
+Use bathread.f and bathwrite.f in the same iterative process as above (steps 5
+-7) to adjust the bathymetry to suit the new mask.

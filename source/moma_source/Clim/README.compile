@@ -1,0 +1,5 @@
+To compile make sure you edit the following line in 'makefile' :
+
+MPATH = /path/to/moma_source
+
+to point to the directory above this one (i.e. to moma_source)

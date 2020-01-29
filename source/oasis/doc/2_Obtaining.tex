@@ -1,0 +1,101 @@
+\newpage
+\begin{section}{Obtaining and Installing OASIS 2.3}
+%               ----------------------------------
+%
+\begin{subsection}{The OASIS package}
+OASIS 2.3 is available as a compressed archive file on the anonymous ftp site
+at CERFACS
+(ftp to ftp.cerfacs.fr, login as ``anonymous''', give your\_email\_address as
+password and go in the {\tt /pub/globc/exchanges/oasis} directory)
+In this directory, you will find among others the following file and 
+sub-directory:
+\begin{itemize}
+\item {\tt oasis\_version2.3.tar.Z}, the OASIS 2.3 compressed file,
+\item {\tt oasis\_version2.3} the on-line OASIS tree for version 2.3,
+\end{itemize}
+The {\tt oasis\_version2.3.tar.Z} file can be expanded by doing:
+\begin{verbatim}
+        prompt% uncompress oasis_version2.3.tar.Z
+        prompt% tar xvf oasis_version2.3.tar
+\end{verbatim}
+The following arborescence is built within the tar file and also
+on line if you want to explore the tree during the ftp session.
+\begin{verbatim}
+        - oasis_version2.3/
+
+                 - CHANGES: main changes within OASIS 2.3 release
+
+                 - doc/     the OASIS 2.3 documentation 
+
+                 - include/ *.h 
+                            ---
+                            all the include *.h files
+
+                 - lib/     
+
+                            anaisg/*.f
+                            anaism/*.f
+                            fscint/*.f
+                            ----------
+                            the interpolation libraries
+
+                            dummy/*.f
+                            ---------
+                            the equivalent dummy files for the communication 
+                            libraries
+
+                            pipe/*.f
+                            --------
+                            the CRAY PIPE communication library
+
+                            clim/include/*.h
+                            clim/src/*.F, *.c
+                            -----------------
+                            the CLIM communication library
+                        
+                            sipc/*.f
+                            svipc/*.c, *.h
+                            --------------
+                            the SIPC communication library
+ 
+                            sxgmem/*
+                            --------
+                            the GMEM communication library
+
+                 - src/     *.f 
+                            namcouple
+                            ---------
+                            the source of the main code + input file 
+
+                 - tools/   fork.c
+                            datcpl.f
+                            lance_sxgmem
+                            ----------
+                            some tools to run OASIS
+
+                            Makefile_clim
+                            Makefile_sipc
+                            Makefile_none
+                            -------------
+                            makefile to compile Oasis when using the CLIM 
+                            or SIPC communication techniques, or to use 
+                            Oasis in an interpolator-only mode
+
+                 - toyclim/  a toy coupled model illustrating the CLIM 
+                             communication technique
+
+                 - toypipe/ a toy coupled model illustrating the PIPE 
+                             communication technique
+
+                 - toysvipc/ a toy coupled model illustrating the SIPC 
+                             communication technique
+
+                 - toysxgmem/ a toy coupled model illustrating the GMEM 
+                             communication technique
+
+\end{verbatim}
+\end{subsection}
+
+
+\end{section}
+%

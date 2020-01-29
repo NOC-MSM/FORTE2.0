@@ -1,0 +1,89 @@
+ # File with instructions on how to compile
+############################
+Make Procedure
+============================
+
+In each case below, when editing the files check the paths and compile options
+to make sure they are correct for your build.
+
+===PVM===
+
+Add the following to .bashrc
+
+
+#- Start of PVM on workstations -
+ROOTOA=/gpfs/[SCRATCHSPACE]/[USERNAME]/FORTE2/source/oasis
+PVM_ROOT=/gpfs/[SCRATCHSPACE]/[USERNAME]/FORTE2/source/pvm3
+export ROOTOA 
+export PVM_ROOT
+#
+PVM_ARCH=`$PVM_ROOT/lib/pvmgetarch`
+export PVM_ARCH
+#
+# Add the PVM commands directory to your shell path.
+PATH=$PATH:$PVM_ROOT/lib/$PVM_ARCH  # arch-specific
+export PATH
+#
+# Add the PVM executable directory to your shell path.
+PATH=$PATH:$PVM_ROOT/bin/$PVM_ARCH
+export PATH
+
+PVM_RSH=/usr/bin/ssh
+export PVM_RSH
+#- End of PVM on workstations -
+
+
+Enter pvm3
+make clean
+make
+
+===OASIS===
+Steps 0-3 build the programs to create the weights and masks etc. files. These should only be needed if:
+ - changing bathymetry/land mask/grid/topography
+ - porting to a system that uses different binary endianness
+
+Note: if you skip steps 0-3 and find you are getting obscure errors at runtime from any component, return to
+      this point and repeat the build process from here. 
+
+0) Enter oasis/toyclim/auxprogs
+1) ifort -r8 progs/*.f
+2) Ensure that your t42.59 file is in the current directory and then run a.out
+   Output files (flxatmos, sstocean, masks, grids, areas, at31topa, ofrac.igcm3) are found in OUTPUT
+3) Copy the output files as follows:-
+   cp OUTPUT/at31topa ../wkdir.basic
+   cp OUTPUT/grids ../wkdir.basic
+   cp OUTPUT/areas ../wkdir.basic
+   cp OUTPUT/masks ../wkdir.basic
+   cp OUTPUT/sstocean ../../../moma_source/sstatmos
+   cp OUTPUT/flxatmos ../../../igcm4/data/flxocean
+   cp OUTPUT/ofrac.igcm3 ../../../igcm4/data/OROG
+
+4) Enter oasis/toyclim/Scripts
+   Edit the compile.coupler file, changing FORTEDIR as appropriate
+5) ./compile.coupler
+6) ./CREATE.basic <runname>
+
+===MOMA===
+1) Enter moma_source/Clim
+2) Edit the makefile as necessary
+3) make clean
+4) make
+5) In moma_source, edit the makefile by changing PVM_ROOT
+6) make clean
+7) make fast -f makefile_fkft_topmix
+8) ./CREATE.basic <runname>
+
+===IGCM4===
+1) Enter igcm4
+2) Edit and run compile.libs only if libraries (FFT etc) need to be compiled
+3) Edit CREATE.basic.mpi to change RPATH
+4) Make sure user is in mjoshi group on grace to read igcm updates
+5) ./CREATE.basic.mpi <runname>
+   (Other CREATE.basic.mpi exist there; e.g. .mjaer for aerosol runs)
+
+
+===Running model===
+1) cd to FORTE2 directory
+2) Edit batch_job and make RUNNAME and PREVIOUS_RUN consistent with <runname> 
+3) Other setups include run length, queues, output frequencies etc
+4) Change batch script to include local directory structure and batch run commands

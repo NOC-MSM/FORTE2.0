@@ -1,0 +1,15 @@
+Changes made to enable netcdf writing of surface fluxes and windstresses...
+
+
+setvbc.F:
+switch.h added
+surf_t_fluxyr updated
+
+cvbc.h:
+surf_t_fluxyr added 
+NOTE: CURRENTLY days SET TO 360
+
+moma.F
+line 1054 - call archwrflx
+
+

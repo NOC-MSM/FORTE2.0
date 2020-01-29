@@ -1,0 +1,41 @@
+*READ /hpcdata/working/atb299/FORTE2_ATB2/source/igcm4/igcm4-forte-code/SRCSTORE/forte/T42-runoff-real_snow_ice-m.upd
+*READ /hpcdata/working/atb299/FORTE2_ATB2/source/igcm4/igcm4-forte-code/SRCSTORE/forte/T42-av-accumulate-tile-m.upd
+*READ /hpcdata/working/atb299/FORTE2_ATB2/source/igcm4/igcm4-forte-code/SRCSTORE/morcrette3_1_1_swv-m.upd
+*READ /hpcdata/working/atb299/FORTE2_ATB2/source/igcm4/igcm4-forte-code/SRCSTORE/igcm_radclouds_sebal_2012-m.upd
+*READ /hpcdata/working/atb299/FORTE2_ATB2/source/igcm4/igcm4-forte-code/SRCSTORE/forte/T42L35_gravd2012-forte-m.upd
+*READ /hpcdata/working/atb299/FORTE2_ATB2/source/igcm4/igcm4-forte-code/SRCSTORE/forte/T42L35-forte-m.upd
+*READ /hpcdata/working/atb299/FORTE2_ATB2/source/igcm4/igcm4-forte-code/SRCSTORE/forte/surfacetype2012-forte-m.upd
+*READ /hpcdata/working/atb299/FORTE2_ATB2/source/igcm4/igcm4-forte-code/SRCSTORE/forte/T42-common_tile-m.upd
+*READ /hpcdata/working/atb299/FORTE2_ATB2/source/igcm4/igcm4-forte-code/SRCSTORE/forte/T42-tiling-m.upd
+*READ /hpcdata/working/atb299/FORTE2_ATB2/source/igcm4/igcm4-forte-code/SRCSTORE/forte/runscript-m.upd
+*READ /hpcdata/working/atb299/FORTE2_ATB2/source/igcm4/igcm4-forte-code/SRCSTORE/forte/T42-oasis-m.upd
+*READ /hpcdata/working/atb299/FORTE2_ATB2/source/igcm4/igcm4-forte-code/SRCSTORE/forte/oasis-backend-m.upd
+*READ /hpcdata/working/atb299/FORTE2_ATB2/source/igcm4/igcm4-forte-code/SRCSTORE/forte/T42L35_misc_common.upd
+*IDENT T42IGCM4
+*DEF ABOVE_V1,ONLY_V3
+*/
+*/ T42L35 topography, vegetation and ocean heatflux
+*/
+*D PARAM1.8
+      INTEGER, PARAMETER :: NHEM=2
+*D PARAM1.11
+      INTEGER, PARAMETER :: MM=42
+*D PARAM1.16
+      INTEGER, PARAMETER :: NL=35
+*D PARAM1.18
+      INTEGER, PARAMETER :: MG=128
+*D PARAM1.21
+      INTEGER, PARAMETER :: JG=32
+*D PARAM1.24
+      INTEGER, PARAMETER :: NTRAC=1
+*D PARAM1.35,36
+      INTEGER, PARAMETER :: NWJ2=462
+*D PARAM1.47
+      INTEGER, PARAMETER :: npe=32
+*D PARAM1.50
+      INTEGER, PARAMETER :: NLEVRF=3
+*D PARAM3.12
+      INTEGER, PARAMETER :: Px=8
+*READ /hpcdata/working/atb299/FORTE2_ATB2/source/igcm4/igcm4-forte-code/SRCSTORE/chg_read_nl.upd
+*READ /hpcdata/working/atb299/FORTE2_ATB2/source/igcm4/igcm4-forte-code/SRCSTORE/T42L35-m.upd
+*READ /hpcdata/working/atb299/FORTE2_ATB2/source/igcm4/igcm4-forte-code/SRCSTORE/forte/spinup-forte-m.upd

@@ -1,0 +1,72 @@
+\begin{subsection}{OASIS input parameters}
+\label{subsec_parameters}
+
+\begin{table}[hbtp]
+\begin{center}
+\begin{tabular}{|lrl|}
+\hline
+  Name & Default Value & Description \\
+\hline
+\hline
+  {\tt jpeight}     &  8 & Numerical value of ``eight'' \\
+  {\tt jpfour}     &  4 & Numerical value of ``four'' \\
+  {\tt jpeighty}     &  80 & Numerical value of ``eighty'' \\
+  {\tt jpfield}     &  16 & Maximum number of coupling fields\\
+  {\tt jpmodel}     &  2 & Maximum number of models\\
+  {\tt jpanal }     & 12 & Maximum number of analyses\\
+  {\tt jpcomb }     &  2 & Maximum number of additional fields number \\
+ &  & to be combined in the BLASxxx analyses \\
+  {\tt jpmxold}     & 300000 & Memory size of the macro arrays handling fields\\
+ &  & values  and field grid-related data before interpolation \\
+  {\tt jpmxnew}     & 150000 & Memory size of the macro arrays handling fields\\
+ &  & values and field grid-related data after interpolation \\
+  {\tt jpmax  }     & 300000 & Maximum of the last two \\
+  {\tt jpgrd  }     & 27664  & Maximum grid size \\
+  {\tt jpred  }     & 3320   & Maximum reduced gaussian grid size (T31) \\
+  {\tt jpparal}     & 362 & Number of parameters for parallel data\\
+ &  & decomposition (for CLIM, see appendix \ref{subsec_climcomm}) \\
+  {\tt jpwoa  }     & 1 & Maximum number of underlying neighbors \\
+ &  & for SURFMESH interpolation \\
+  {\tt jpnoa  }     & 4 & Maxmum number of neighbors for GAUSSIAN \\
+ &  & interpolation \\
+  {\tt jpmoa  }     & 48 & Maximum number of underlying neighbors for \\
+ &  &   MOZAIC interpolation \\
+  {\tt jpsoa  }     & 40 &  Maximum number of overlaying neighbors for \\
+ &  &    SUBGRID interpolation  \\
+  {\tt  jpnfm }     & 1 & Maximum number of different SURFMESH \\
+ &  &  interpolation data set \\
+  {\tt  jpnfg }     & 1 & Maximum number of different GAUSSIAN \\
+ &  &  interpolation data set \\
+  {\tt  jpnfp }     & 4 & Maximum number of different MOZAIC
+  interpolations \\
+  {\tt  jpnfs }     & 1 & Maximum number of different SUBGRID
+  interpolations \\
+  {\tt  jpnfn }     & 2 & Maximum number of different NINENN extrapolations
+   \\
+  {\tt  jpbyteint } & 4 & Number of bytes per integer (SIPC communication)
+  \\
+  {\tt  jpbyterea } & 4 & Number of bytes per real (SIPC communication)\\
+  {\tt  jpbytecha } & 1 & Number of bytes per character (SIPC communication)\\
+  {\tt  jpext } & 1 &  Maximum number of neighbors for WEIGHT extrapolation \\
+  {\tt  jpnbn } & 1 &  Maximum number of different WEIGHT extrapolations \\
+\hline
+\end{tabular}
+\end{center}
+\caption{Main parameters}
+\label{tab.dims}
+\end{table}
+
+Table \ref{tab.dims} gives the value by default of some parameters
+defined in the {\tt include/parameter.h} file of OASIS. The actual
+values of the parameters  
+are adapted for the CLIM toy coupled model (see directories /toyclim),
+and have to be modified to fit the user needs for a real
+coupling (for example, 
+increasing the maximum number of coupling fields). Note that each time a
+modification is done in this {\tt include/parameter.h} file, the 
+complete main source should then be re-compiled.
+Most of these parameters are used to dimension macro and work arrays
+needed to handle the pseudo-dynamic allocation.
+
+%
+\end{subsection}

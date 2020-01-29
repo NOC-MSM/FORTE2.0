@@ -1,0 +1,59 @@
+*/ ---------------------------------------
+*/ Rayleigh friction set to 2 layers: sponge layers
+*/ ---------------------------------------
+*/
+*IDENT MISC_COMMON
+*/
+*/ ---------------------------------------
+*/ Use the only random number generator, for comparison with the
+*/ original version.
+*/ ---------------------------------------
+*D MLTRI.207
+*/ Replace the line:
+*/            IF (LNOISE.AND..NOT.LRSTRT) CALL NOISE
+            IF (LNOISE.AND..NOT.LRSTRT) CALL NOISEold
+*/ ---------------------------------------
+*/ Change the file that are read in INISTR
+*/ ---------------------------------------
+*D INISTR.419
+*/ Replace the line:
+*/            open(50,file='orogdata/t21.50',status='old')
+            open(50,file='orogdata/t42.50',status='old')
+*D INISTR.436
+*/ Replace the line:
+*/            OPEN(50,file='orogdata/t21.59',status='old')
+            open(50,file='orogdata/t42.59',status='old')
+*/ ---------------------------------------
+*/ RADIATION CODE
+*/ Change levels in rad scheme so NRLEV=NL+1
+*/ ---------------------------------------
+*D ZPARB.429
+      PARAMETER (NRLEV=36,NUA=34,NINT=6,NTRA=34, NLAT=1,
+*/ ---------------------------------------
+*/ OUTPUT bug
+*/ ---------------------------------------
+*D WRITECOEF.308,309
+      ENDIF
+      IF (MyPe.EQ.0)DEALLOCATE(WriteArray)
+*/ ---------------------------------------
+*/ MPI
+*/ ---------------------------------------
+*D MPIDECK.23
+       INCLUDE 'mpif.h'
+*D MPIDECK.29
+!      INTEGER, PARAMETER :: Type = SELECTED_REAL_KIND(15, 307)
+      INTEGER, PARAMETER :: Type = SELECTED_REAL_KIND(6, 30)
+*D MPIDECK.33
+!      INTEGER(KIND=Type), PARAMETER :: ParaInt=MPI_INTEGER8
+      INTEGER(KIND=Type), PARAMETER :: ParaInt=MPI_INTEGER
+*D MPIDECK.35
+!      INTEGER(KIND=Type), PARAMETER :: ParaCom=MPI_COMPLEX16
+      INTEGER(KIND=Type), PARAMETER :: ParaCom=MPI_DOUBLE_COMPLEX
+*D MPIDECK.37
+!      INTEGER(KIND=Type), PARAMETER :: ParaLog=MPI_INTEGER8
+      INTEGER(KIND=Type), PARAMETER :: ParaLog=MPI_LOGICAL
+*D ENERGY.230
+   50 FORMAT(I8,1X,4E15.6,2F13.10)
+*I MLTRI.202
+      IF (MyPe.EQ.0.and.mod(kount,960).EQ.0)print*,day,
+     :sp(1,1,1),sp(1,1,2),T(1,1,1,35),D(1,1,2,1)

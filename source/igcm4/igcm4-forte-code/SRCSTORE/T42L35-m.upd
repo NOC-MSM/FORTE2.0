@@ -1,0 +1,83 @@
+*IDENT LEV35
+*/ =======================================================
+*/ Updated from Sylvia's L35.upd for the IGCM3.1 version.
+*/ M. Bourqui 21 May 2001.
+*/ Star wars 4: a new formulation
+*/ =======================================================
+*/ Define the variables needed in subroutine INISI
+*/ -------------------------------------------------------
+*B INISI.46
+*/ Insert before the `Loop variables'
+      REAL :: SIGHBOT
+      REAL :: SIGTURN
+      REAL :: SIGSPREAD
+      REAL :: SIGTRA
+      REAL :: SIGTRB
+*/ -------------------------------------------------------
+*/ Make sure fort.2 can handle the small sigma
+*/ -------------------------------------------------------
+*D INISI.54
+*/ Remove the line:
+*/  213 FORMAT(1X,8F8.4)
+  213 FORMAT(1X,8F8.5)
+*D INISI.58
+*/ Remove the line:
+*/  217 FORMAT(5X,8F8.3)
+  217 FORMAT(5X,8F8.5)
+*I INISI.100
+*/ Insert after the lines:
+*/         SIGMAH(21)=0.951
+*/      ENDIF
+      ! lowest SIGMAH layer
+      SIGHBOT = 0.92
+      ! lowest level of DSIGMA increase with pressure
+      SIGTURN = 31.0
+      ! spreads out sigmah
+      SIGSPREAD=12.05
+      ! Amplitude of UTLS magnification
+      SIGTRA  = 0.85
+      ! pressure level of UTLS
+      SIGTRB  = 0.70
+      DO L=1,NL-1
+         SIGMAH(L)=REAL(L)*
+     &        DEXP(-(((REAL(L)-SIGTURN)/SIGSPREAD)**2.0))*
+     &        (1.0-SIGTRA*dsin(SIGTRB*REAL(L)*PI/REAL(NL)))
+      END DO
+      DO L=1,NL-2
+         SIGMAH(L) = SIGMAH(L)*SIGHBOT/SIGMAH(NL-1)
+      END DO
+      SIGMAH(NL-1) = SIGHBOT
+*/ -------------------------------------------------------
+*/ Modification to O3INTERP
+*/ -------------------------------------------------------
+*B O3INTERP.16
+*/ Insert before:
+*/!-----------------------------------------------------
+*/! Passed variables
+*CALL PARAM3
+*CALL MPIDECK
+*I O3INTERP.131
+*/ Insert at end of subroutine, after:
+*/ 271     sumrdp=sumrdp+o3mod(l)*dpmod(l)
+*/      ENDDO
+!-----------------------------------------------------
+! Extrapolate ozone to new model levels. Update of SMR 1999, assumes 
+! ozone varies linearly with pressure from 1mbar (3ppmv) to 0.1mbar 
+! (0.5ppmv). Not valid above 0.1mbar. O3 value at 1mbar taken from 
+! top of climatology - invalid if top is not 1mbar any more.
+!-----------------------------------------------------
+      if (ocliml(1).ne.1.0) then
+         write(2,*)'Top of climatology is not 1mb. Ozone at top of'
+         write(2,*)'model will not be correct. CRASH.'
+         stop
+      endif
+      if (sigma(1)*ps.lt.2.0) then ! if top pressure .lt. 0.02mb
+         write(2,*)'The linear interpolation of ozone at the top'
+         write(2,*)'of the model will not be valid. CRASH.'
+         stop
+      endif
+      do l=1,nl
+         if (sigma(l)*ps.lt.100.0) then ! if pressure lt 1mb
+            o3mod(l)=(sigma(l)*ps/100.0)*o3clim(1)
+          endif
+      enddo 

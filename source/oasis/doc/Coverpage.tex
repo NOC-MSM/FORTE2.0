@@ -1,0 +1,51 @@
+\vspace*{0.5cm}
+{\Large
+   \begin{center}
+      OASIS 2.3 \\
+      {\bf O}cean {\bf A}tmosphere {\bf S}ea  {\bf I}ce  {\bf S}oil\\
+      \vspace{0.4cm}
+      User's Guide \\
+      \vspace{0.4cm}
+      {\large October 1999}
+
+   \end{center}
+}
+
+\vspace*{1cm}
+
+\centerline{Laurent Terray, Sophie Valcke, Andrea Piacentini.}
+
+\vspace*{1cm}
+
+\centerline{C.E.R.F.A.C.S.}
+\centerline{42 avenue Coriolis, 31057 TOULOUSE cedex 1}
+
+\begin{abstract}
+This user's guide contains a brief overview of the information needed for
+the straightforward use of OASIS 2.3. As far as we know, it is
+the best way to use it!
+
+The aim of OASIS is to provide an efficient and easy-to-use tool 
+for coupling independent
+general circulation models of the atmosphere and the ocean (A/O-GCMs) 
+as well as
+other climate modules (sea-ice, vegetation, wave models...). 
+Coupled GCMs (CGCMs) are necessary tools to tackle
+current climatic paradigms such as the natural variability, 
+El Ni\~no Southern Oscillation
+(ENSO) or the greenhouse gas global warming effect. 
+The models can possibly run on various plateforms and in different
+environments (batch mode, interactive mode...). Four techniques of 
+communication are available to 
+exchange the coupling fields between the
+models and the coupler in a synchronized way: PIPE (based on CRAY
+named pipes), CLIM (based on PVM version 3.3 or later) that allows
+a distributed coupling, SIPC (based on Unix System V Inter Process 
+Communication) or GMEM (based on the global memory concept existing 
+on NEC machines). Modularity and
+flexibility have been particularly emphasized in the OASIS design. 
+The use of OASIS
+does not change the way the models were previously running, except
+that it requires the addition of few communication routines.
+\end{abstract}
+

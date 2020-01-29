@@ -1,0 +1,365 @@
+#
+LIBOASIS	=	/hpcdata/working/atb299/FORTE2_ATB2/source/oasis/toyclim/wkdir.basic/Cpl/liboasis2.2.a
+LIBPVM	=	 -L/hpcdata/working/atb299/FORTE2_ATB2/source/pvm3/lib/LINUX64 -lfpvm3 -lgpvm3 -lpvm3
+CMD	=	oasis 
+F77	=	ifort -fpe0 -fpp -O0 -mp1 -align -auto -r8 -i4
+F90	=	ifort -fpe0 -fpp -O0 -mp1 -align -auto -r8 -i4
+CC	=	icc -ip
+OPTSF77	=	
+OPTSF90	=	
+AR	=	xiar
+ARFLAGS	=	rv
+PVM_ARCH=       LINUX64
+
+SRCD = \
+$(DUMMYDIR)/dummypipe.f $(DUMMYDIR)/dummysvipc.f $(DUMMYDIR)/dummysrc.f 
+OBJD = \
+$(DUMMYDIR)/dummypipe.o $(DUMMYDIR)/dummysvipc.o $(DUMMYDIR)/dummysrc.o 
+
+#Path definition:
+# note this version has the lib/anaisg/*.o etc files explicitly
+# referenced in the load step because the makefile didn't create libraries of
+# .o files as it was supposed to
+ANAISGDIR = lib/anaisg
+ANAISMDIR = lib/anaism
+CLIMDIR   = lib/clim/src
+DUMMYDIR  = lib/dummy
+FSCINTDIR = lib/fscint
+SRCDIR    = src
+INCLUDIR  = include
+INCLUCL   = lib/clim/include
+#
+SRCG = \
+		$(ANAISGDIR)/nagset.f \
+		$(ANAISGDIR)/nagsst.f \
+		$(ANAISGDIR)/qcscur.f \
+		$(ANAISGDIR)/qgrhal.f \
+		$(ANAISGDIR)/qgrho.f \
+		$(ANAISGDIR)/qlgaus.f \
+		$(ANAISGDIR)/qlins.f \
+		$(ANAISGDIR)/qlsort.f \
+		$(ANAISGDIR)/qlsst.f
+
+SRCM = \
+		$(ANAISMDIR)/namset.f \
+		$(ANAISMDIR)/namsst.f \
+		$(ANAISMDIR)/pcssph.f \
+		$(ANAISMDIR)/plsst.f \
+		$(ANAISMDIR)/pmesh.f \
+		$(ANAISMDIR)/pminm.f \
+		$(ANAISMDIR)/pmrhal.f \
+		$(ANAISMDIR)/pmrho.f
+
+SRCL = \
+		$(CLIMDIR)/CLIM_Abort.F \
+		$(CLIMDIR)/CLIM_Define.F \
+		$(CLIMDIR)/CLIM_Defport.F \
+		$(CLIMDIR)/CLIM_Delta.F \
+		$(CLIMDIR)/CLIM_Export.F \
+		$(CLIMDIR)/CLIM_Flush.F \
+		$(CLIMDIR)/CLIM_Hostdt.F \
+		$(CLIMDIR)/CLIM_Import.F \
+		$(CLIMDIR)/CLIM_Init.F \
+		$(CLIMDIR)/CLIM_Nodedt.F \
+		$(CLIMDIR)/CLIM_Quit.F \
+		$(CLIMDIR)/CLIM_Reset.F \
+		$(CLIMDIR)/CLIM_Start.F \
+		$(CLIMDIR)/CLIM_Stepi.F \
+		$(CLIMDIR)/CLIM_Time.F \
+		$(CLIMDIR)/CLIM_Trace.F \
+		$(CLIMDIR)/CLIM_Wait.F
+
+SRCLC = \
+		$(CLIMDIR)/wallclk.c 
+
+SRCF1 = \
+		$(FSCINTDIR)/semper.f 
+
+SRCF2 = \
+		$(FSCINTDIR)/discendo.f 
+
+SRCC1 = \
+		$(DUMMYDIR)/svipcdummy.c
+
+SRCC = \
+		$(SRCDIR)/blasold.f \
+		$(SRCDIR)/blasnew.f \
+		$(SRCDIR)/calend.f \
+		$(SRCDIR)/chkfld.f \
+		$(SRCDIR)/chkmem.f \
+		$(SRCDIR)/chkpar.f \
+		$(SRCDIR)/chksgc.f \
+		$(SRCDIR)/coasts.f \
+		$(SRCDIR)/conserv.f \
+		$(SRCDIR)/cookart.f \
+		$(SRCDIR)/correct.f \
+		$(SRCDIR)/driver.f \
+		$(SRCDIR)/empty.f \
+		$(SRCDIR)/extrap.f \
+		$(SRCDIR)/extraw.f \
+		$(SRCDIR)/ferror.f \
+		$(SRCDIR)/fiasco.f \
+		$(SRCDIR)/filling.f \
+		$(SRCDIR)/getfld.f \
+		$(SRCDIR)/getfpe.f \
+		$(SRCDIR)/givfld.f \
+		$(SRCDIR)/glored.f \
+		$(SRCDIR)/grstat.f \
+		$(SRCDIR)/halte.f \
+		$(SRCDIR)/icoor.f \
+		$(SRCDIR)/idivmax.f \
+		$(SRCDIR)/ilenstr.f \
+		$(SRCDIR)/imaxim.f \
+		$(SRCDIR)/iminim.f \
+		$(SRCDIR)/inicmc.f \
+		$(SRCDIR)/inidya.f \
+		$(SRCDIR)/inigrd.f \
+		$(SRCDIR)/iniiof.f \
+		$(SRCDIR)/inilun.f \
+		$(SRCDIR)/inipar.f \
+		$(SRCDIR)/initim.f \
+		$(SRCDIR)/interp.f \
+		$(SRCDIR)/invert.f \
+		$(SRCDIR)/isumi.f \
+		$(SRCDIR)/izero.f \
+		$(SRCDIR)/jcoor.f \
+		$(SRCDIR)/locread.f \
+		$(SRCDIR)/locreadh.f \
+		$(SRCDIR)/locrint.f \
+		$(SRCDIR)/locwrint.f \
+		$(SRCDIR)/locwrite.f \
+		$(SRCDIR)/locwrith.f \
+		$(SRCDIR)/masq.f \
+		$(SRCDIR)/modsgc.f \
+		$(SRCDIR)/mozaic.f \
+		$(SRCDIR)/nextbl.f \
+		$(SRCDIR)/nextch.f \
+		$(SRCDIR)/parse.f \
+		$(SRCDIR)/postpro.f \
+		$(SRCDIR)/preproc.f \
+		$(SRCDIR)/prcout.f \
+		$(SRCDIR)/prtout.f \
+		$(SRCDIR)/redglo.f \
+		$(SRCDIR)/reset.f \
+		$(SRCDIR)/reverse.f \
+		$(SRCDIR)/revmsk.f \
+		$(SRCDIR)/rmaxim.f \
+		$(SRCDIR)/rminim.f \
+		$(SRCDIR)/sqdis.f \
+		$(SRCDIR)/ssumr.f \
+		$(SRCDIR)/subgrid.f \
+		$(SRCDIR)/szero.f \
+		$(SRCDIR)/updtim.f \
+		$(SRCDIR)/waitpc.f 
+
+OBJG =  \
+		$(ANAISGDIR)/nagset.o \
+		$(ANAISGDIR)/nagsst.o \
+		$(ANAISGDIR)/qcscur.o \
+		$(ANAISGDIR)/qgrhal.o \
+		$(ANAISGDIR)/qgrho.o \
+		$(ANAISGDIR)/qlgaus.o \
+		$(ANAISGDIR)/qlins.o \
+		$(ANAISGDIR)/qlsort.o \
+		$(ANAISGDIR)/qlsst.o
+
+OBJM =  \
+		$(ANAISMDIR)/namset.o \
+		$(ANAISMDIR)/namsst.o \
+		$(ANAISMDIR)/pcssph.o \
+		$(ANAISMDIR)/plsst.o \
+		$(ANAISMDIR)/pmesh.o \
+		$(ANAISMDIR)/pminm.o \
+		$(ANAISMDIR)/pmrhal.o \
+		$(ANAISMDIR)/pmrho.o
+
+OBJCL =  \
+		$(CLIMDIR)/CLIM_Abort.o \
+		$(CLIMDIR)/CLIM_Define.o \
+		$(CLIMDIR)/CLIM_Defport.o \
+		$(CLIMDIR)/CLIM_Delta.o \
+		$(CLIMDIR)/CLIM_Export.o \
+		$(CLIMDIR)/CLIM_Flush.o \
+		$(CLIMDIR)/CLIM_Hostdt.o \
+		$(CLIMDIR)/CLIM_Import.o \
+		$(CLIMDIR)/CLIM_Init.o \
+		$(CLIMDIR)/CLIM_Nodedt.o \
+		$(CLIMDIR)/CLIM_Quit.o \
+		$(CLIMDIR)/CLIM_Reset.o \
+		$(CLIMDIR)/CLIM_Start.o \
+		$(CLIMDIR)/CLIM_Stepi.o \
+		$(CLIMDIR)/CLIM_Time.o \
+		$(CLIMDIR)/CLIM_Trace.o \
+		$(CLIMDIR)/CLIM_Wait.o
+
+OBJCLC = \
+		$(CLIMDIR)/wallclk.o
+
+OBJF1 =  \
+		$(FSCINTDIR)/semper.o
+
+OBJF2 =  \
+		$(FSCINTDIR)/discendo.o
+
+OBJC1 =  \
+		$(DUMMYDIR)/svipcdummy.o
+
+OBJC =  \
+		$(SRCDIR)/blasold.o \
+		$(SRCDIR)/blasnew.o \
+		$(SRCDIR)/calend.o \
+		$(SRCDIR)/chkfld.o \
+		$(SRCDIR)/chkmem.o \
+		$(SRCDIR)/chkpar.o \
+		$(SRCDIR)/chksgc.o \
+		$(SRCDIR)/coasts.o \
+		$(SRCDIR)/conserv.o \
+		$(SRCDIR)/cookart.o \
+		$(SRCDIR)/correct.o \
+		$(SRCDIR)/driver.o \
+		$(SRCDIR)/empty.o \
+		$(SRCDIR)/extrap.o \
+		$(SRCDIR)/extraw.o \
+		$(SRCDIR)/ferror.o \
+		$(SRCDIR)/fiasco.o \
+		$(SRCDIR)/filling.o \
+		$(SRCDIR)/getfld.o \
+		$(SRCDIR)/getfpe.o \
+		$(SRCDIR)/givfld.o \
+		$(SRCDIR)/glored.o \
+		$(SRCDIR)/grstat.o \
+		$(SRCDIR)/halte.o \
+		$(SRCDIR)/icoor.o \
+		$(SRCDIR)/idivmax.o \
+		$(SRCDIR)/ilenstr.o \
+		$(SRCDIR)/imaxim.o \
+		$(SRCDIR)/iminim.o \
+		$(SRCDIR)/inicmc.o \
+		$(SRCDIR)/inidya.o \
+		$(SRCDIR)/inigrd.o \
+		$(SRCDIR)/iniiof.o \
+		$(SRCDIR)/inilun.o \
+		$(SRCDIR)/inipar.o \
+		$(SRCDIR)/initim.o \
+		$(SRCDIR)/interp.o \
+		$(SRCDIR)/invert.o \
+		$(SRCDIR)/isumi.o \
+		$(SRCDIR)/izero.o \
+		$(SRCDIR)/jcoor.o \
+		$(SRCDIR)/locread.o \
+		$(SRCDIR)/locreadh.o \
+		$(SRCDIR)/locrint.o \
+		$(SRCDIR)/locwrint.o \
+		$(SRCDIR)/locwrite.o \
+		$(SRCDIR)/locwrith.o \
+		$(SRCDIR)/masq.o \
+		$(SRCDIR)/modsgc.o \
+		$(SRCDIR)/mozaic.o \
+		$(SRCDIR)/nextbl.o \
+		$(SRCDIR)/nextch.o \
+		$(SRCDIR)/parse.o \
+		$(SRCDIR)/postpro.o \
+		$(SRCDIR)/preproc.o \
+		$(SRCDIR)/prcout.o \
+		$(SRCDIR)/prtout.o \
+		$(SRCDIR)/redglo.o \
+		$(SRCDIR)/reset.o \
+		$(SRCDIR)/reverse.o \
+		$(SRCDIR)/revmsk.o \
+		$(SRCDIR)/rmaxim.o \
+		$(SRCDIR)/rminim.o \
+		$(SRCDIR)/sqdis.o \
+		$(SRCDIR)/ssumr.o \
+		$(SRCDIR)/subgrid.o \
+		$(SRCDIR)/szero.o \
+		$(SRCDIR)/updtim.o \
+		$(SRCDIR)/waitpc.o 
+
+all: $(CMD)
+
+$(CMD): $(LIBOASIS) $(SRCDIR)/blkdata.o $(SRCDIR)/couple.o
+		$(F90) $(OPTSF90) $(SRCDIR)/*.o lib/anaisg/*.o lib/anaism/*.o lib/clim/src/*.o lib/dummy/*.o lib/fscint/*.o $(LIBOASIS) $(LIBPVM) -o $(CMD)
+#		$(F77) $(LDFLAGS) $(SRCDIR)/couple.o $(SRCDIR)/blkdata.o -o $(CMD)
+
+$(LIBOASIS):: $(OBJC)
+		$(AR) $(ARFLAGS) $(LIBOASIS) $(OBJC)
+
+$(LIBOASIS):: $(OBJCL)
+		$(AR) $(ARFLAGS) $(LIBOASIS) $(OBJCL)
+
+$(LIBOASIS):: $(OBJCLC)
+		$(AR) $(ARFLAGS) $(LIBOASIS) $(OBJCLC)
+
+$(LIBOASIS):: $(OBJF1)
+		$(AR) $(ARFLAGS) $(LIBOASIS) $(OBJF1)
+
+$(LIBOASIS):: $(OBJF2)
+		$(AR) $(ARFLAGS) $(LIBOASIS) $(OBJF2)
+
+$(LIBOASIS):: $(OBJM)
+		$(AR) $(ARFLAGS) $(LIBOASIS) $(OBJM)
+
+$(LIBOASIS):: $(OBJG)
+		$(AR) $(ARFLAGS) $(LIBOASIS) $(OBJG)
+
+$(LIBOASIS):: $(OBJD)
+		$(AR) $(ARFLAGS) $(LIBOASIS) $(OBJD)
+
+$(LIBOASIS):: $(OBJC1)
+		$(AR) $(ARFLAGS) $(LIBOASIS) $(OBJC1)
+
+#
+
+$(OBJG):	$(@:.o=.f)
+		$(F77) $(OPTSF77) -I $(INCLUDIR) -c $(@:.o=.f)
+		mv $(@F)  $(ANAISGDIR)
+
+$(OBJM):	$(@:.o=.f)
+		$(F77) $(OPTSF77) -I $(INCLUDIR) -c $(@:.o=.f)
+		mv $(@F)  $(ANAISMDIR)
+
+$(OBJD):	$(@:.o=.f)
+		$(F77) $(OPTSF77) -I $(INCLUDIR) -c $(@:.o=.f)
+		mv $(@F)  $(DUMMYDIR)
+
+$(OBJF1):	$(@:.o=.f)
+		$(F90) $(OPTSF90) -c $(@:.o=.f)
+		cp $(@F) $(FSCINTDIR) 
+
+$(OBJF2):	$(@:.o=.f)
+		$(F90) $(OPTSF90) -c $(@:.o=.f) $(OBJF1)
+		mv $(@F) $(FSCINTDIR)
+
+$(OBJC1):	$(@:.o=.c)
+		$(CC) -I $(DUMMYDIR) -c $(@:.o=.c)
+		mv $(@F) $(DUMMYDIR)
+
+$(OBJC):	$(@:.o=.f)
+		$(F77) $(OPTSF77) -I $(INCLUDIR) -c $(@:.o=.f)
+		mv $(@F) $(SRCDIR)
+
+$(OBJCLC):	$(@:.o=.c)
+		$(CC) -I $(INCLUCL) -D$(PVM_ARCH) -c $(@:.o=.c)
+		mv $(@F) $(CLIMDIR)
+
+$(OBJCL):	$(@:.o=.f)
+		$(F77) $(OPTSF77) -I $(INCLUCL) -c $(@:.o=.F)
+		mv $(@F) $(CLIMDIR)
+
+$(SRCDIR)/blkdata.o:	$(SRCDIR)/blkdata.f
+		$(F77) $(OPTSF77) -I $(INCLUDIR)  -c $(@:.o=.f)
+		mv $(@F) $(SRCDIR)
+
+$(SRCDIR)/couple.o:	$(SRCDIR)/couple.f
+		$(F77) $(OPTSF77) -I $(INCLUDIR)  -c $(@:.o=.f)
+		mv $(@F) $(SRCDIR)
+
+cleano:
+		rm -f $(CMD) $(LIBOASIS)
+		rm -f $(ANAISGDIR)/*.o
+		rm -f $(ANAISMDIR)/*.o
+		rm -f $(DUMMYDIR)/*.o
+		rm -f $(FSCINTDIR)/*.o
+		rm -f *.mod semper.o
+		rm -f $(SRCDIR)/*.o
+

@@ -1,0 +1,15 @@
+============================================================================
+
+Compile the oasis-aux-files making program with 'f77 progs/*.f'. To run, ensure
+you have the igcm map you want copied to t42.59 in this directory, and run the
+executable you just made.
+
+changing resolution: you need to alter the parameters.h file in progs/ thus:
+
+if you've changed the MOMA resolution to 2 degrees, you can just sub-in the
+parameters.h.2x2 file into parameters.h. Otherwise...
+
+nxo needs to be the same as the number you changed '90' to in moma/param.h. nyo
+needs to be what you changed the '43' to, +2. yoffs needs to be the same as
+latmin from ocean.in, minus (dydeg/2). xoffs is 0 + (dxdeg/2). dyo and dxo are
+the same as dydeg and dxdeg

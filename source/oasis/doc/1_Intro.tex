@@ -1,0 +1,244 @@
+\newpage
+\vspace*{3cm}
+\addcontentsline{toc}{section}{Acknowledgements}
+\centerline{\bf Acknowledgements}
+\vspace*{2cm}
+We would like to thank the following people for their help
+and suggestions in the design of the OASIS software:
+
+\begin{description}
+  \item Dominique Astruc (IMFT)
+  \item Sophie Belamari (M\'et\'eo-France)
+  \item Dominique Bielli (M\'et\'eo-France)
+  \item Gilles Bourhis (IDRIS)
+  \item Pascale Braconnot (CEA)
+  \item Christophe Cassou (CERFACS)
+  \item Yves Chartier (RPN)
+  \item Jalel Chergui (IDRIS)
+  \item Philippe Courtier (LODYC)
+  \item Philippe Dandin (M\'et\'eo-France)
+  \item Michel D\'equ\'e (M\'et\'eo-France)
+  \item Jean-Louis Dufresne (LMD)
+  \item Laurent Fairhead (LMD)
+  \item Marie-Alice Foujols (IPSL)
+  \item Gilles Garric (CERFACS)
+  \item Eric Guilyardi (CERFACS)
+  \item Pierre Herchuelz (ACCRI)
+  \item Maurice Imbard (LODYC)
+  \item Jean Latour (FUJITSU)
+  \item Stephanie Legutke (DKRZ)
+  \item Claire L\'evy (LODYC)
+  \item Olivier Marti (CEA)
+  \item Claude Mercier (IDRIS)
+  \item Pascale Noyret (EDF)
+  \item Marc Pontaud (CERFACS)
+  \item Hubert Ritzdorf (CCRLE-NEC)
+  \item Sami Saarinen (ECMWF)
+  \item Eric Sevault (M\'et\'eo-France)
+  \item Tim Stockdale (ECMWF)
+  \item Rowan Sutton (UGAMP)
+  \item V\'eronique Taverne (CERFACS)
+  \item Jean-Christophe Thil (UKMO)
+  \item Olivier Thual (IMFT/CERFACS)
+\end{description}
+
+\newpage
+\begin{section}{Introduction}
+
+\begin{subsection}{General description}
+
+Coupling numerical models is certainly not a new preoccupation in the climate
+research community and in other research fields such as electromagnetism, 
+computational fluid dynamics (CFD), etc. Ideally, the coupler, i.e. the
+software interface between the different models, should allow the realization
+of coupled simulations on different types of platforms at a minimal cost, 
+permit the testing of different 
+coupling algorithms (time strategy or interpolation methods for instance), 
+and allow objective intercomparison of coupled General Circulation Models 
+(GCMs) by changing one or both models (which implies being able to handle 
+any Ocean or Atmosphere GCM). One can see right away that these specifications 
+strongly suggest modularity as the key concept in designing the interface 
+structure. 
+
+\vspace{0.4cm}
+
+OASIS was written to answer these requirements.
+OASIS is a complete, self-consistent and portable set of Fortran 77, Fortran 
+90 and C 
+routines divided into a main library, interpolation libraries and 
+communication libraries. Its main tasks
+are the synchronization of the models being coupled, and the treatment and 
+interpolation of the fields exchanged between the models. 
+All the options of the simulation are defined by the
+user in an input file {\em namcouple} which uses free formatting. The code
+is thoroughly documented, i.e. each variable or array is defined in the 
+appropriate subroutine or include file header. Furthermore, numerous comments
+are included within the code itself to facilitate the understanding of the 
+code structure.
+It can run on any usual target for scientific computing
+(IBM RS6000 and SPs, SPARCs, SGIs, CRAY and VPP series, NEC, etc.). 
+
+\vspace{0.4cm}
+
+The models are
+separate entities (different processes in the Unix sense). They are unchanged
+with respect to their own main options (like I/O or multitasking) compared to
+the uncoupled mode. Few routines need to be added to deal with the time
+synchronization and the exchange of coupling fields, realized through the
+coupler. The models can be run sequentially, in parallel or a combination of
+both. 
+Within OASIS, the models to be coupled and the fields to be exchanged during
+a simulation are defined only at run time through the input file 
+{\em namcouple}. This implies that if the 
+number of models or fields change, one needs not to recompile OASIS; a 
+modification of the input file is sufficient. This is done through a 
+pseudo-dynamic allocation within OASIS.
+
+\vspace{0.4cm}
+
+To exchange the coupling fields between the models and the coupler in a
+synchronized way, four
+different types of communication are included in OASIS. In the PIPE technique, 
+named CRAY pipes are used for synchronization of the models and the coupling 
+fields
+are written and read in simple binary files. In the CLIM technique, the 
+synchronization and the transfer of the coupling data are done through 
+sockets by
+message passing based on PVM 3.3 or later. In particular, this technique 
+allows 
+heterogeneous coupling. In the SIPC technique, using UNIX System V Inter Process
+Communication possibilities, 
+the synchronization is ensured by semaphores and shared memory segments are
+used to exchange the coupling fields. The GMEM technique works similarly
+as the SIPC one but is based on the NEC global memory concept.
+
+\vspace{0.4cm}
+
+The fields given by one model to OASIS have to be processed and transformed so 
+that they can be read and used directly by the receiving model. These
+transformations, or analyses, can be different for the different fields.
+First a pre-processing takes place which deals with rearranging the arrays
+according to OASIS convention, treating possible sea-land mismatch, and 
+correcting the fields with external data if required. Then follows the 
+interpolation of the fields required to go from one model grid to the other 
+model grid. Many interpolation schemes are available: nearest neighbour,
+bilinear, bicubic, mesh averaging, gaussian. Additional transformations
+ensuring for example field conservation occur afterwards if required. Finally 
+the post-processing puts the fields into the receiving model format.
+
+\end{subsection}
+
+\begin{subsection}{History and upgrades}
+
+The initial work on OASIS began in 1991 when the ``Climate Modelling
+and Global Change'' team at CERFACS was commissioned to build up a
+french Coupled Model from existing GCMs developed in an independent way by 
+several laboratories (LODYC, CNRM, LMD). Quite clearly, the only way 
+to handle this heterogeneous
+environment was to create a very modular and flexible tool
+(Terray et al. \cite{meteo}).
+The first version of the software, Version 0, was used in the forcing
+of an oceanic GCM by a set of atmospheric fluxes issued from
+an AMIP-type run.
+
+\vspace{0.4cm}
+
+Version 1.0 was written in 1993 and has been used quite extensively at
+CERFACS, in particular for the first coupled 10-year simulation of the
+tropical Pacific (Terray et al. \cite{terray}).
+Version 1.1, released in 1994, incorporated several new
+features. Among them, one can note
+the possibility of coupling an AGCM with a sea-ice model,
+new interpolation schemes including the no-interpolation case 
+(models with identical grids).
+This version has been used widely in the French Climate Modelling
+community (the so-called GASTON group) as well as at the European
+Centre for Medium-range Weather Forecast (ECMWF) and at the UGAMP
+University (U.K.). In particular, it was used at CERFACS to perform
+two global coupled simulations, one of 50 years with a T21 atmosphere
+and one of 25 years with a T42 atmosphere, both with a high resolution
+global ocean (Guilyardi et al. \cite{guilyardi};
+Pontaud et al. \cite{pontaud}).
+
+\vspace{0.4cm}
+
+Version 2.0 was a major rewriting of the software as the goal
+was much more ambitious. Since Version 2.0, the modularity of OASIS is
+much greater than before as it can now handle an arbitrary number
+of models and coupling fields (while previous versions could only deal
+with 2 models and some given number of coupling fields). Also, the
+models can now run simultaneously or sequentially.
+Furthermore, the modularity is also extended to
+the set of analyses one wants to perform on a given field. Finally, the
+addition of the CLIM communication technique based on the message passing library
+PVM 3.3 allows distributed simulations. For example, within the framework 
+of the CATHODE project, OASIS was used to couple two GCMs running on two remote
+computers, one in Paris, one in Toulouse \cite{cassou}.
+OASIS 2.0 and the following OASIS 2.1 were used in a series of global
+coupled resolutions among which two 100-year simulations, the first one being
+a control experiment reproducing the present climate, and the second one 
+being an increasing-$CO_2$ scenario (\cite{guil_climdyn_97},
+\cite{guil_jpo_98}, \cite{bart_CRAS_98}, \cite{bart_GRL_98}).
+
+\vspace{0.4cm}
+
+On the 18-19 September 1997, a ``Technical Aspects of Ocean-Atmosphere
+Coupling'' workshop was organized jointly by CERFACS and
+Fujitsu and gathered together most of OASIS users (approximately
+15 research groups in Europe but also in Canada, in the United States 
+and in Australia). One of the main recommendation that emerged from the
+workshop was to maintain and introduce different
+types of communication and synchronization, ensuring the possibility of
+using the software on a large variety of platforms, including the new 
+distributed memory vector/parallel machines, such as the Fujitsu VPP700.
+To answer this point, a new communication library based on the System
+V Interprocess Communication
+(SVIPC) Unix facility, has been introduced and tested in the 
+OASIS 2.2 version. This version also included new grid types 
+handled by the interpolation routines, the possibility of adding an
+extended descriptive header for the coupling fields, a new extrapolation
+method, a rewriting of the memory allocation within the Fast SCalar 
+INTerpolator (FSCINT) library to use Fortran 90 dynamical allocation, and the 
+possibility to use OASIS in an interpolator-only mode (no models
+required). 
+
+\vspace{0.4cm}
+
+The now-available version 2.3 includes a fourth communication technique
+based on the NEC global memory concept. It also allows different levels of
+output information in OASIS output file. In this last version, T213 and T319
+reduced grids have been added and the way of refering to reduced gaussin grid 
+has been modified. Finally, besides few bug corrections, the possibility of
+reading a dataset of weights and addresses for the extrapolation analysis
+has been added.
+
+\vspace{0.4cm} 
+
+Future developments of OASIS will focus on an additional 
+communication interface based on the emerging
+message passing standard MPI-2 (in collaboration with Fujitsu) and a global 
+rewriting in Fortran-90.
+
+\vspace{0.4cm}
+
+To the authors knowledge, few other coupling packages have been developed
+with modularity and generality in mind. These include MICASA developed at
+GFDL (Pacanowski et al. \cite{micasa}) and the NCAR flux coupler 
+\cite{ncar}. The latter is actually rooted within the NCAR Climate System Model
+(CSM) and does not offer as many options as OASIS. In particular, it cannot
+handle stretched grids which are becoming fairly common in ocean modelling.
+OASIS 2.3 is a nice and easy-to-use tool and we sure
+hope to convince you with the help of this manual. OASIS was written
+by Laurent Terray with contributions from Yves Chartier, Eric Guilyardi,
+Andrea Piacentini, Hubert Ritzdorf, Sami Saarinen, Eric Sevault, 
+Olivier Thual and Sophie Valcke. The
+OASIS working team, in charge of the software maintenance and development,
+is composed of Sophie Valcke, Andrea Piacentini and Laurent Terray. For any 
+question, bug report, or further information you should contact them at 
+oasishelp@cerfacs.fr.
+
+
+\end{subsection}
+
+
+\end{section}

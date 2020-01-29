@@ -1,0 +1,110 @@
+
+ I-USGRAF-WELCOME
+ UNIRAS release 6.5A Rev A
+  
+    UUUU  UUUU NNNN   NNNN IIII RRRRRRRR     AAAA      SSSSSSSSS
+    UUUU  UUUU NNNN   NNNN IIII RRRRRRRRR   AAAAA     SSSSSSSSSSS
+   UUUU  UUUU NNNNNN NNNN IIII RRRR   RRRR AAAAAAA   SSSS    SSSS
+   UUUU  UUUU NNNNNNNNNNN IIII RRRR  RRRR AAAA AAA   SSSSSSSSS
+  UUUU  UUUU NNNNNNNNNNN IIII RRRRRRRRR  AAAA  AAAA    SSSSSSSSS
+  UUUU  UUUU NNNN NNNNNN IIII RRRRRRRRRRAAAAAAAAAAA SSSS    SSSS
+  UUUUUUUUU NNNN   NNNN IIII RRRR   RRRRAAAAAAAAAAAASSSSSSSSSSS
+   UUUUUUU  NNNN   NNNN IIII RRRR   RRRRAAA    AAAAA SSSSSSSSS
+  
+ UNIRAS is the property of Advanced Visual Systems Inc.
+
+ I-USGRAF-CUSTNAM
+ Running Demo Version from
+ Advanced Visual Systems Inc
+ Blokken 15
+ DK-3460 Birkerød
+ Denmark
+
+ I-USGRAF-DCTXCRI
+ Create an empty device context and make it the current context
+ --------------------------------------------------------------
+ Context identifier of the created context :            3441748
+
+ I-USGRAF-SOP1INF
+ UNIRAS is running using MX11
+ The device is LX11      X11 default device
+
+ I-USGRAF-COLRINF
+ A   virtual    color   table   has   been   defined
+ ---------------------------------------------------
+ Virtual color table number         :              1
+ Highest entry in color table       :            255
+ Color mode                         :            COM
+ Users color scheme                 :            HLS
+ Maximum level in users color scheme:          100.0
+
+ I-USGRAF-COLRINF
+ A   virtual    color   table   has   been   defined
+ ---------------------------------------------------
+ Virtual color table number         :            127
+ Highest entry in color table       :              1
+ Color mode                         :            COM
+ Users color scheme                 :            HLS
+ Maximum level in users color scheme:          100.0
+
+ I-USGRAF-RCTXCRI
+ Create a default graphics context and make it the current context
+ -----------------------------------------------------------------
+ Context identifier of the created context :               3531744
+ Current user color table                  :                     1
+ Scope of user color table                 :                Global
+ Current system color table                :                   127
+ Scope of system color table               :                 Local
+
+ I-USGRAF-SOP2INF
+ Plot area setups
+ --------------------------------------------------
+ Number of pixels in X-direction   :            896
+ Number of pixels in Y-direction   :            702
+ Pixel size mm in X-direction      :      0.3382812
+ Pixel size mm in Y-direction      :      0.3389831
+ Plot area size (mm) in X-direction:       303.0999
+ Plot area size (mm) in Y-direction:        237.966
+
+ I-USGRAF-COLRINF
+ A   virtual    color   table   has   been   defined
+ ---------------------------------------------------
+ Virtual color table number         :             28
+ Highest entry in color table       :             83
+ Color mode                         :            COM
+ Users color scheme                 :            HLS
+ Maximum level in users color scheme:          100.0
+
+ I-RVMODE-COLRINF
+ A   virtual    color   table   has   been   defined
+ ---------------------------------------------------
+ Virtual color table number         :             31
+ Highest entry in color table       :             80
+ Color mode                         :            COM
+ Users color scheme                 :            HLS
+ Maximum level in users color scheme:          100.0
+
+ I-USGRAF-RCTXDCI
+ Delete an active ( one that is current ) graphics  context
+ ----------------------------------------------------------
+ Context identifier of the deleted context :        3531744
+ Number of contexts remaining              :              0
+
+ I-USGRAF-DCTXDDI
+ Delete an  active ( one that is current )  device  context
+ ----------------------------------------------------------
+ Context identifier of the deleted context :        3441748
+ Number of contexts remaining              :              0
+
+ I-USGRAF-GOODBYE
+ +----------------------------+
+ ! UNIRAS has been terminated !
+ +----------------------------+
+
+ I-USGRAF-GUCLINF
+ UNIRAS terminated on October 14, 2004 10:17:35
+  
+     Times in seconds         Page      Direct     Buffered
+      Cpu    Elapsed         faults      I/O         I/O
+     2.08      N/A         N/A       N/A         N/A
+  

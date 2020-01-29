@@ -1,0 +1,98 @@
+\newpage
+\appendix
+\begin{section}{The grid types for the interpolations}
+\label{subsec_gridtypes}
+
+The grids supported by the interpolations in {\tt OASIS 2.3} 
+are the following. Note that interpolations
+from the {\tt /lib/fscint} library (BILINEAR, BICUBIC, NNEIBOR) cannot
+be performed on `U' type grids. Remember that for each field, the
+type of the source and target grids ({\tt P} for periodical or
+{\tt R} for regional) has to be given in the {\em namcouple}
+with the number of overlapping grid points (enter `0' if regional)
+(see \ref{subsubsec_general})
+
+In the following paragraphs,
+let NI and NJ be the number of longitudes and latitudes, respectively.
+
+\begin{enumerate}
+ 
+\item {\tt `A' grid}: this is a lat-lon grid covering either the whole
+      globe or an hemisphere.
+      There is no grid point at the pole and at the equator, and the
+      first latitude has an offset of 0.5 grid interval. The first
+      longitude is 0$^o$ (the Greenwhich meridian) and is not repeated
+      at the end of the grid ({\tt \$CPER} = P and {\tt \$NPER}= 0). 
+      The latitudinal 
+      grid length is 180/NJ
+      for a global grid, 90/NJ otherwise. The longitudinal grid length
+      is 360/NI. The grid parameters ig1, ig2, ig3 and ig4 (see
+      routine {\tt fiasco.f}) are defined as follows:
+  \begin{itemize}
+    \item ig1 contains the domain of the grid:
+          0 $->$ global, 1 $->$ North.Hemis., 2 $-> $South.Hemis.
+    \item ig2 contains the orientation of the grid:
+          0: South $->$ North, 1: North $->$ South.
+    \item ig3 must be 0.
+    \item ig4 must be 0.
+  \end{itemize}
+
+\item {\tt `B' grid}: this is a lat-lon grid covering either an
+      hemisphere or the whole globe. There is a grid point at the pole
+      and at the equator (if the grid is hemispheric or global with NJ
+      odd). The first longitude is 0$^o$ (the Greenwhich meridian), and
+      is repeated at the end of the grid ({\tt \$CPER} = P and 
+      {\tt \$NPER}= 1). 
+      The latitudinal grid length
+      is 180/(NJ-1) for a global grid, 90/(NJ-1) otherwise. The
+      longitudinal grid length is 360/(NI-1). The ig* parameters
+      have the same meaning as for grid A.
+
+  
+\item {\tt `G' grid}: it is a gaussian grid covering either an
+      hemisphere or the whole globe. This grid is used in spectral
+      models. It is very much alike the A grid, except that the
+      latitudes are not equidistant. There is no grid point at the
+      pole and at the equator. The first longitude is 0$^o$ (the
+      Greenwhich meridian) and is not repeated at the end of the
+      grid ({\tt \$CPER} = P and {\tt \$NPER}= 0). 
+      The longitudinal grid length is 360/NI. 
+      The ig* parameters
+      have the same meaning as for grid A. Note that reduced gaussian
+      grids are accepted under G type, but analysis REDGLO and GLORED
+      have to be used first to interpolate from the reduced grid to the
+      global one.
+
+
+\item {\tt `L' grid}: the L grid is a cylindrical equidistant grid
+      (alias lat-lon). This grid is defined by the following
+      parameters: 
+
+  \begin{itemize}
+    \item xlat0: latitude of the southwest corner of the grid.
+    \item xlon0: longitude of the southwest corner of the grid.
+    \item dlat: latitudinal grid length in degrees
+    \item dlon: longitudinal grid length in degrees
+ \end{itemize}
+
+\item {\tt `U' grid}: the U grid represents a data set without a
+      regular structure. A typical application is a record containing
+      values for a stream of lat-lon points. This grid can be periodical
+      with {\tt \$NPER} overlapping grid points. Beware that {\tt fscint}
+      cannot be used to handle interpolation from this type of grid. The
+      gaussian interpolator {\tt anaisg} must be used to perform the
+      interpolation.
+
+\item {\tt `Z' grid}: this is a cartesian grid with a non-constant
+      mesh. The deformation of the mesh is described with the help of
+      1-dimensional positional records (in each direction). This grid is
+      periodical ({\tt \$CPER} = P)
+      with {\tt \$NPER} overlapping grid points.The record
+      containing the deformation of the grid should contain NI points
+      on the X-axis, and NJ points on the Y-axis. 
+
+\item {\tt `Y' grid}: this grid is like `Z' grid except that it is 
+      regional ({\tt \$CPER} = R and {\tt \$NPER} = 0).
+\end{enumerate}
+
+\end{section}

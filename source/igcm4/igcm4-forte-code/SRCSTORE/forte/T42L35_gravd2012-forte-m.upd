@@ -1,0 +1,400 @@
+*/ =======================================================
+*/ Calculates acceleration due to gravity wave drag
+*/ using simple modified Lindzen/Holton parameterization
+*/ (also see Barnes JGR 1990, Josh et al JGR 1995)
+*/ Drag from one orographic mode and two non-orographic
+*/
+*/ Rayleigh friction always present at 2 topmost levels
+*/
+*/ =======================================================
+*IDENT GRAVDMOD
+*/ ---------------------------------------
+*/ Extra variables in GSG common block added in OAS_COMTILE
+*/ ---------------------------------------
+*/ ---------------------------------------
+*/ Need to read in TOPVAR variable
+*/ ---------------------------------------
+*B INISTR.49
+*/ Insert after line:
+*/      REAL, ALLOCATABLE :: GSGFull(:,:,:)
+      REAL, ALLOCATABLE :: TopvarFull(:,:,:)
+*I INISTR.439
+*/ Insert after line:
+*/     &           ((GSGFull(i,2,j),i=1,mg),j=jg,1,-1)
+*/            CLOSE(50)
+            !-----------------------------------------------------
+            ! Read in gravity wave drag array.
+            ! This is subgridscale st.dev. of topography slightly 
+            ! smoothed to represent the fact that gravity waves do 
+            ! not propagate purely vertically upwards but also 
+            ! slightly horizontally too.
+            !-----------------------------------------------------
+            ALLOCATE(TopvarFull(MG,NHEM,JG))
+            open(51,file='topog_gwd.dat',status='old')
+	    read(51,*) TopvarFull
+	    close(51)
+*B INISTR.445
+*/ Insert before lines:
+*/         !-----------------------------------------------------
+*/         ! Print out land mask
+         !-----------------------------------------------------
+         ! Share TOPVAR across PEs
+         !-----------------------------------------------------
+         CALL SHAREGRID(.TRUE.,MG,1,TopvarFull,TOPVAR)
+         IF (MyPe.EQ.0) DEALLOCATE(TopvarFull)
+*/ ---------------------------------------
+*/ Add the GWK,GWNO variable to the PHYS common block
+*/ ---------------------------------------
+*I PHYSCA.23
+*/ Insert after line:
+*/     &     ,SALB,SBAL,BLCD,SVEGE
+     &      ,GWK,GWNO
+      REAL :: GWK,GWNO
+*/ ---------------------------------------
+*/ Add the GWK,GWNO variable to INPHYS namelist
+*/ ---------------------------------------
+*I INIPHYS.34
+*/ Insert after line:
+*/     &     ,CURHM,CUBMT,CBADJT,CBADJP
+     &     ,GWK,GWNO
+*/ ---------------------------------------
+*/ Format statement for GWK,GWNO
+*/ ---------------------------------------
+*I INIPHYS.63
+*/ Insert after line:
+*/     :       ' CONSTANT COEFFS AKVV AKTV AKQV =',3F8.2)
+  255 FORMAT('GWAVE Ks, Non orog amplitude = ',E9.3,E9.3)
+*/ ---------------------------------------
+*/ Default setting for GWK,GWNO and check this isn't a spinup run
+*/ ---------------------------------------
+*I INIPHYS.86
+*/ Insert after the line:
+*/      CBADJP=-30.0
+      GWK = 1.5E-6
+      GWNO = 90.0
+!-----------------------------------------------------
+! Check this is not a spinup run
+!-----------------------------------------------------
+      IF ((MyPe.EQ.0).AND.(.NOT. LRSTRT)) THEN
+	 write(2,*) '***GRAVITY WAVE DRAG WARNING***'
+	 WRITE(2,*) 'GWD in a spinup run'
+	 write(2,*) 'Spurious GWD might be diagnosed with zero U:'
+         write(2,*) 'If run crashes check this'
+	 WRITE(2,*) ''
+C 	  CLOSE(2)
+C	  stop
+      ENDIF
+*/ ---------------------------------------
+*/ Store the value of GWK,GWNO in output file
+*/ ---------------------------------------
+*I INIPHYS.127
+*/ Insert after the line:
+*/         IF(LVD) WRITE(2,245)AKVV,AKTV,AKQV
+         WRITE(2,255)GWK,GWNO
+*/ ---------------------------------------
+*/ Ensure that value of GWK,GWNO is passed to the other PEs
+*/ ---------------------------------------
+*I INIPHYS.179
+*/ Insert after the lines:
+*/         CALL MPI_BCAST(CBADJP,nBuffSize,ParaReal,iSend,
+*/     &        MPI_COMM_WORLD,ierr)
+         CALL MPI_BCAST(GWK,nBuffSize,ParaReal,iSend,
+     &        MPI_COMM_WORLD,ierr)
+         CALL MPI_BCAST(GWNO,nBuffSize,ParaReal,iSend,
+     &        MPI_COMM_WORLD,ierr)
+*/ ---------------------------------------
+*/ Add call to Gravity wave drag routine
+*/ ---------------------------------------
+*I DGRMLT.161
+*/ Insert after the line:
+*/         IF(LVD) CALL VDIFF(JH)
+         CALL GRAVD(JH)
+*/ ---------------------------------------
+*/ REMOVE RAYLEIGH FRICTION SPONGE LAYER- replaced by GW drag
+*/ ---------------------------------------
+*D DIFUSE.127,160
+C
+*/ ---------------------------------------
+*/ Gravity wave drag subroutine
+*/ ---------------------------------------
+*DECK GRAVD
+!=====================================================
+! Gravity wave drag subroutine
+!=====================================================
+      SUBROUTINE GRAVD(JH)
+      IMPLICIT NONE
+*CALL PARAM1
+*CALL PARAM2
+*CALL PARAM3
+*CALL BLANK
+*CALL LEGAU
+*CALL BATS
+*CALL GRIDPA3
+*CALL PHYSCA
+*CALL OROG_G
+*CALL MPIDECK
+!-----------------------------------------------------
+! Passed argument
+!-----------------------------------------------------
+! Latitude index
+      INTEGER :: JH
+!-----------------------------------------------------
+! Local variables
+!-----------------------------------------------------
+! zonal wind profile dimensionalised, breaking level
+      REAL :: UDM(NL),VDM(NL),RLEVB(NL)
+! Brunt vaisala freq in trop and strat
+      REAL :: BVFT,BVFS
+! Breaking level diagnostic
+      REAL :: RLEVBZM(NL,NHEM)
+! GW acceleration diagnostic
+      REAL :: FXZM(NL,NHEM)
+      REAL :: SQC
+      REAL :: HGT
+      INTEGER :: igunit
+      INTEGER :: igfreq
+      INTEGER :: LGSTART,LGCHECK
+      INTEGER :: ICPH
+      REAL :: RICPH,CPH
+      REAL :: ugwav
+      REAL :: VARU
+      INTEGER :: LEVC
+      REAL :: SIGB,PSGW,PSSL
+      REAL :: USUM,VSUM
+      REAL :: FX,FY
+      INTEGER, PARAMETER :: TagRef=7000000
+      REAL :: HoldVar(0:NL,NHEM,2)
+      REAL, ALLOCATABLE :: WriteArray(:,:,:)
+! Loop variables
+      INTEGER :: I, IHEM, JGW, L 
+!-----------------------------------------------------
+! Cos(theta), Scale height,Rayleigh friction 1/Tau,I/O unit,freq
+!-----------------------------------------------------
+      SQC=SQRT(CSSQ(JJ1(iRow)+JH,1))
+      HGT=7.0E3
+      BVFS=0.02
+      BVFT=0.01
+      igunit=71
+      igfreq=30
+!-----------------------------------------------------
+! Initialise zonal mean diags
+!-----------------------------------------------------
+      IF (iCol.EQ.1) THEN
+        DO IHEM=1,NHEM
+          DO L=1,NL
+	    RLEVBZM(L,IHEM)=0.0
+	    FXZM(L,IHEM)=0.0
+          ENDDO
+        ENDDO
+      ELSE
+	!-----------------------------------------------------
+        ! Get the values of RLEVBZM and FXZM from previous PE column
+	!-----------------------------------------------------
+        iSend=PeGrid(iCol-1,iRow)
+        nBuffSize=(nl+1)*nhem*2
+        iTag=TagRef+1000*(iCol-1)+iRow
+        CALL MPI_RECV(HoldVar,nBuffSize,ParaReal,iSend,
+     &                iTag,MPI_COMM_WORLD,istat,ierr)
+        RLEVBZM(1:NL,:)=HoldVar(1:NL,:,1)
+        FXZM(1:NL,:) =HoldVar(1:NL,:,2)
+      ENDIF
+      !-----------------------------------------------------
+      ! Loop over hemispheres
+      !-----------------------------------------------------
+      DO IHEM=1,NHEM
+	!-----------------------------------------------------
+        ! Longitude loop
+	!-----------------------------------------------------
+        DO I=1,MGxx(iCol)
+
+           !-----------------------------------------------------
+           ! Start gravity wave upwards from level above 250 hPa
+           ! Initialise dimensional winds UDM, VDM and surf pressure
+           !-----------------------------------------------------
+           LGSTART=2
+           LGCHECK=0
+           PSGW=P0*PLG3(I,IHEM,JH)
+	   DO L=1,NL
+              IF(PSGW*SIGMA(L).gt.2.5E4.and.LGCHECK.eq.0)
+     :        THEN
+                LGSTART=L-1
+                LGCHECK=1
+              ENDIF
+	      UDM(L)=UG3(I,IHEM,JH,L)*CV/SQC
+	      VDM(L)=VG3(I,IHEM,JH,L)*CV/SQC
+	   ENDDO
+
+	   !-----------------------------------------------------
+           ! Before calculating zonal GW drag, calculate zonal and
+           ! meridional drag at model top: this is the sponge layer
+           ! Drag formulation is like GWD and and momentum is
+           ! conserved (improvement on spectral Rayleigh friction)
+           ! Drag factor PSSL tuned and reduces with P0*sigma(1)/P(L)
+           ! so that drag reduces away from model top. Sponge layer
+           ! implies some wave breaking at model top
+	   !-----------------------------------------------------
+	   USUM=0.0
+           VSUM=0.0
+	   DO L=1,NLEVRF
+              PSSL=0.125*MIN((SIGMA(1)*1.0E5)/(PSGW*SIGMA(L)),1.0)
+	      FX=-0.2*PSSL*GWK*(UDM(L)**3)/
+     &               (2.0*HGT*BVFS)
+	      FUG3(I,IHEM,JH,L)=FUG3(I,IHEM,JH,L)+FX*SQC/(CV*WW)
+	      UG3(I,IHEM,JH,L)=UG3(I,IHEM,JH,L)+DELT2C*FX*SQC/(CV*WW)
+	      USUM=USUM+(FX*SQC/(CV*WW))*DSIGMA(L)/DSIGMA(NL)
+	      FY=-0.2*PSSL*GWK*(VDM(L)**3)/
+     &               (2.0*HGT*BVFS)
+	      FVG3(I,IHEM,JH,L)=FVG3(I,IHEM,JH,L)+FY*SQC/(CV*WW)
+	      VG3(I,IHEM,JH,L)=VG3(I,IHEM,JH,L)+DELT2C*FY*SQC/(CV*WW)
+	      VSUM=VSUM+(FY*SQC/(CV*WW))*DSIGMA(L)/DSIGMA(NL)
+C
+	      FXZM(L,IHEM)=FXZM(L,IHEM)+FX/REAL(MG)
+	      RLEVBZM(L,IHEM)=RLEVBZM(L,IHEM)+RLEVB(L)/REAL(MG)
+	   ENDDO
+	   !-----------------------------------------------------
+           ! Take tendencies off the lowest layer to conserve 
+           ! momentum
+	   !-----------------------------------------------------
+           FUG3(I,IHEM,JH,NL)=FUG3(I,IHEM,JH,NL)-USUM
+           UG3(I,IHEM,JH,NL)=UG3(I,IHEM,JH,NL)-DELT2C*USUM
+
+           FVG3(I,IHEM,JH,NL)=FVG3(I,IHEM,JH,NL)-VSUM
+           VG3(I,IHEM,JH,NL)=VG3(I,IHEM,JH,NL)-DELT2C*VSUM
+
+! GW drag phase speed loop: zero is the orographic mode
+
+           DO ICPH=-1,1
+
+! Initialise breaking indicator. Zero is no breaking
+
+	   DO L=1,NL
+              RLEVB(L)=0.0
+	   ENDDO
+
+           RICPH=REAL(ICPH)
+
+	   !-----------------------------------------------------
+           ! Calculate zonally averaged breaking level for each 
+           ! ICPH and IHEM. GW amplitude = h*U
+           ! For orog modes h=orog sd., U=low-level wind, CPH=0
+           ! For non-orog U=10,h*U=U*GWNO, CPH=U(NL)+/-RICPH*10
+           ! VARU for non-orog modes is effectively constant
+	   !-----------------------------------------------------
+           IF (icph.eq.0) then
+              UGWAV = abs(UDM(NL))
+C Simple Froude number criterion for orog gwd
+              if(BVFT*TOPVAR(I,IHEM,JH)/(UGWAV+1.0E-2).gt.1.0)goto 695
+              CPH = 0.0
+              VARU = UGWAV*TOPVAR(I,IHEM,JH)
+           else
+              UGWAV=10.0
+              CPH = UDM(NL)+RICPH*10.0
+              VARU = UGWAV*GWNO
+           endif
+	   !-----------------------------------------------------
+           ! Iterate upwards from LGSTART to find SIGB (breaking level)
+           ! and LEVC (critical layer).
+	   !-----------------------------------------------------
+           LEVC=1
+           DO L=LGSTART-1,1,-1
+              SIGB=((BVFS*VARU)**2.0)/
+     &            (UGWAV*ABS((UDM(L)-CPH)**3)+1.0E-6)
+	      !-----------------------------------------------------
+              ! Breaking wave if SIGB or wave already broken below...
+	      !-----------------------------------------------------
+	      IF(SIGB.gt.SIGMA(L).or.RLEVB(L+1).gt.1.0E-5)THEN
+		 RLEVB(L)=1.0
+	      ENDIF
+	      !-----------------------------------------------------
+              ! ...unless critical level reached.
+              ! breaking levels on either side of this
+	      !-----------------------------------------------------
+	      IF((UDM(L)-CPH)*(UDM(L+1)-CPH).LT.0.0)THEN
+		 LEVC=L
+		 RLEVB(L)=0.5
+		 RLEVB(L+1)=0.5
+		 goto 690
+	      ENDIF
+	   ENDDO
+ 690	   CONTINUE
+	   !-----------------------------------------------------
+           ! Calculate zonal tendencies between LEVC 
+	   ! and zonal mean GWD diags. Factor of 0.2 is for 
+	   ! wave intermittency and is from Barnes (JGR 1990)
+	   !-----------------------------------------------------
+	   USUM=0.0
+	   DO L=LEVC,LGSTART
+	      FX=-0.2*RLEVB(L)*GWK*((UDM(L)-CPH)**3)/
+     &               (2.0*HGT*BVFS)
+	      FUG3(I,IHEM,JH,L)=FUG3(I,IHEM,JH,L)+FX*SQC/(CV*WW)
+	      UG3(I,IHEM,JH,L)=UG3(I,IHEM,JH,L)+DELT2C*FX*SQC/(CV*WW)
+	      USUM=USUM+(FX*SQC/(CV*WW))*DSIGMA(L)/DSIGMA(NL)
+C
+	      FXZM(L,IHEM)=FXZM(L,IHEM)+FX/REAL(MG)
+	      RLEVBZM(L,IHEM)=RLEVBZM(L,IHEM)+RLEVB(L)/REAL(MG)
+	   ENDDO
+	   !-----------------------------------------------------
+           ! Take tendencies off the lowest layer to conserve 
+           ! momentum
+	   !-----------------------------------------------------
+           FUG3(I,IHEM,JH,NL)=FUG3(I,IHEM,JH,NL)-USUM
+           UG3(I,IHEM,JH,NL)=UG3(I,IHEM,JH,NL)-DELT2C*USUM
+
+           !-----------------------------------------------------
+	   ! Add average diagnostics to output arrays
+           ! Factor of 3 for the 3 phase speeds
+	   !-----------------------------------------------------
+           do l=1,nl
+            rlevbzmo(jh,ihem,l)=rlevbzmo(jh,ihem,l)+
+     &                       rlevbzm(l,ihem)/real(ITSPD*igfreq*3)
+           enddo
+
+           do l=1,nl
+           fxzmo(jh,ihem,l)=fxzmo(jh,ihem,l)+
+     &                      fxzm(l,ihem)/real(ITSPD*igfreq*3)
+           enddo
+
+ 695       CONTINUE
+
+           END DO       ! end cph phase speed loop
+
+        ENDDO           ! end longitude loop
+
+      ENDDO   ! End IHEM LOOP
+!-----------------------------------------------------
+! Pass RLEVBZM and FXZM to the next column of PEs
+!-----------------------------------------------------
+      IF ((Px.GT.1).AND.(iCol.LT.Px)) THEN
+        HoldVar(1:NL,:,1)=RLEVBZM(1:NL,:)
+        HoldVar(1:NL,:,2)=FXZM(1:NL,:)
+        iRecv=PeGrid(iCol+1,iRow)
+        nBuffSize=(nl+1)*nhem*2
+        iTag=TagRef+1000*iCol+iRow
+        CALL MPI_BSEND(HoldVar,nBuffSize,ParaReal,
+     &                 iRecv,iTag,MPI_COMM_WORLD,ierr)
+      ENDIF
+!-----------------------------------------------------
+! Output every IGFREQ days and re-zero output arrays
+!-----------------------------------------------------
+      IF (mod(kount,itspd*igfreq).EQ.0.AND.JH.EQ.JG) THEN
+	 IF (MyPe.EQ.0) ALLOCATE(WriteArray(JG,NHEM,NL))
+	 CALL SHAREGRID3(NL,RLEVBZMO,WriteArray)
+	 write(igunit,*) WriteArray
+	 CALL SHAREGRID3(NL,FXZMO,WriteArray)
+	 write(igunit+1,*) WriteArray
+	 call flush(igunit)
+	 call flush(igunit+1)
+	 IF (MyPe.EQ.0) DEALLOCATE(WriteArray)
+	 DO L=1,NL
+	    DO IHEM=1,NHEM
+	       DO JGW=1,JGyy(iRow)
+		  RLEVBZMO(JGW,IHEM,L)=0.0
+		  FXZMO(JGW,IHEM,L)=0.0
+	       ENDDO
+	    ENDDO
+	 ENDDO
+      ENDIF
+      RETURN
+      END
+*/ End of T42L35 GRAVD update
+*/

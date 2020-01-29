@@ -1,0 +1,105 @@
+\newpage
+\begin{section}{What is OASIS}%              ----------------
+%
+\begin{subsection}{Overview of OASIS structure}
+\label{subsec_overview}
+
+The main tasks of OASIS is to synchronize the exchange of fields
+between two or more models to be coupled and to process and 
+interpolate these coupling fields. This is done in a
+modular way in order to allow coupling of any GCM and flexibility in the
+field treatment. The inner structure of the OASIS software is as follows.
+
+\vspace{0.4cm}
+
+The OASIS code has a main program, {\tt couple}, which opens up the
+coupler output and input files, {\em cplout} and {\em namcouple} respectively.
+Then {\tt couple} calls the driver routine {\tt driver} which
+basically controls the whole simulation. It contains the initialization 
+process (see \ref{subsec_initialization}), the coupler temporal loop as well 
+as the basic sequential structure of the OASIS
+timestepping scheme. 
+In fact, the whole modularity concept underlying OASIS
+can be presented with a description of the routine {\tt driver}.
+The main entity in the coupling sequence is the coupling field itself 
+and not the model which is generating it. This has strong consequences
+on the type of input needed by OASIS. To each coupling field is associated
+the relevant grid-related auxiliary data files containing grid longitudes and 
+latitudes, masked points and grid squared surfaces (see \ref{subsec_data}).
+For each OASIS iteration, {\tt driver} determines which coupling fields 
+have to be exchanged (i.e read in, treated and written out). The field 
+identificators (basically the rank in which they appear in the input file)
+are stored in an index array. This index together with the total number of 
+fields to be exchanged are passed as arguments to the ``core'' routines. 
+These routines can be divided in two categories. 
+
+\vspace{0.4cm}
+
+The first category deals with I/O
+issues and contains routines {\tt getfld} and {\tt givfld} which read in
+and write out the coupling fields, respectively. 
+
+The I/O actions for the
+first time iteration differs from the others as the coupler needs no signal 
+to read the restart fields. 
+The restart fields must be written in binary files before the beginning of the 
+simulation on their
+original grid (see \ref{subsec_data}). The coupler simply reads in these files 
+and does the interpolation while the models pause initially, waiting for
+OASIS to provide them their initial boundary conditions.
+
+For the following iterations, four types of 
+communication, referred to as PIPE, CLIM, SIPC, or GMEM are available within 
+these 
+routines to exchange the coupling fields between the models and the coupler 
+in a synchronized way (see \ref{subsec_communication}).
+In the PIPE technique (working only on CRAY machines), CRAY named pipes are 
+used to inform the model or the coupler
+that the coupling fields have been written in simple
+binary files and are ready to be read; this technique runs only on CRAY 
+machines. In the CLIM technique, the
+synchronization and the transfer of the coupling data is done through sockets
+by message passing using PVM 3.3 or later. The CLIM technique allows 
+heterogeneous coupling (the models and OASIS can run on different machines).
+Furthermore, CLIM can deal efficiently with parallel data decomposition of
+the coupling fields.
+In the SIPC technique recently implemented in OASIS and using UNIX
+System V Inter Process Communication 
+possibilities, shared memory segments are used to exchange the
+coupling data and the synchronization is ensured by semaphores.
+The GMEM technique is specific to NEC SX machines and use the NEC-SX 
+global memory Inter Process Communication facility to exchange the
+coupling data as well as to ensure synchronization. 
+
+\vspace{0.4cm}
+
+The second category of routines contains
+{\tt preproc, interp, cookart} and {\tt postpro} that deal with
+families of analyses performed on each field. As the coupling fields are 
+usually real 
+arrays, the term ``analysis'' is used here to
+designate any transformation that either modify some or all array values, 
+change array dimensions or rearrange array storage order. 
+Routines {\tt preproc} and {\tt postpro} do the fields preprocessing and
+postprocessing, respectively. Routine {\tt interp} performs the fields
+interpolation while routine {\tt cookart} does some additional analysis
+(see \ref{subsec_analyses}). These four analysis control routines have
+a similar internal structure. The external loop is
+over the exchanged fields for the current iteration while the internal one
+runs over the whole set of analyses for the given field. Within the
+internal loop, there is a series of branching (Fortran IF statements)
+towards specific analysis routines of the current family.
+
+\vspace{0.4cm}
+Finally, the routine {\tt driver} will also ensure
+the proper termination of the simulation and, if required, the voluntary 
+abortion of the GCMs (the 
+coupler must be able to stop the simulation if an error has occured 
+in one of the models) (see \ref{subsubsec_process}).
+
+\vspace{0.4cm}
+
+In addition, OASIS contains many auxiliary routines which perform secondary 
+tasks. 
+
+\end{subsection}

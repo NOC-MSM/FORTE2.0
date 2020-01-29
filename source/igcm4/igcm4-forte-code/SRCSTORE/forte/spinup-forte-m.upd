@@ -1,0 +1,140 @@
+*/ =======================================
+*/ Spin up model from rest
+*/ =======================================
+*IDENT SPUP
+*/
+*D INISTR.149
+*/ Replace the line:
+*/               IF (MYPE.EQ.0) WRITE (2,2050)
+               !-----------------------------------------------------
+               ! Set temperature and vorticity
+               !-----------------------------------------------------
+               IF (MYPE.EQ.0)THEN
+                  WRITE (2,*)'DO NOT SET ARRAYS TO ZERO:'
+                  WRITE (2,*)'ADD EZ TO Z: ADD TMEAN TO T'
+                  DO L=1,NL
+                     T(1,1,1,L)=T(1,1,1,L)+SQR2*(TMEANJ(L)/CT-T0(L))
+                     TMI(1,1,1,L)=TMI(1,1,1,L)+SQR2*(TMEANJ(L)/CT-T0(L))
+                  ENDDO
+                  DO L=1,NL
+                     Z(1,1,1,L)=Z(1,1,1,L)+EZ
+                     ZMI(1,1,1,L)=ZMI(1,1,1,L)+EZ
+                  ENDDO
+               ENDIF
+*/ ---------------------------------------
+*/ Modifications to INISURF
+*/ ---------------------------------------
+*I INISURF.40
+*/ Add after the line:
+*/      REAL :: SALOOK(24)
+      INTEGER :: iFull, jFull
+*D INISURF.52,126
+*/ Remove from
+*/!-----------------------------------------------------
+*/! Read in data for RCHECK
+*/ to
+*/      DEALLOCATE(SurfVars)
+*D INISURF.144,159
+*/ Remove from
+*/               !-----------------------------------------------------
+*/               ! The .AND. is because the vegetation index does
+*/ to
+*/               SBAL(I,IHEM,J) = SBAL(I,IHEM,J)+0.05
+               tstar(I,IHEM,j)=290.0/CT
+               tstaro(I,IHEM,j)=290.0/CT
+               tdeep(I,IHEM,j)=290.0/CT
+               tdeepo(I,IHEM,j)=290.0/CT
+               smstar(I,IHEM,j)=ssmc*0.1
+               hsnow(I,IHEM,j)=0.0
+               !---------------------------------------
+               !FORTE: Initialise snow depth over icecaps using SVEGE
+               ! to SHSMAX: snow depth can change in FORTE
+               !---------------------------------------
+               if(svege(i,ihem,j).eq.2)then
+                 hsnow(i,ihem,j)=SHSMAX
+                 tstar(I,IHEM,j)=260.0/CT
+                 tstaro(I,IHEM,j)=260.0/CT
+                 tdeep(I,IHEM,j)=260.0/CT
+                 tdeepo(I,IHEM,j)=260.0/CT
+               endif
+               sqstar(I,IHEM,j)=pqsat(tstar(I,IHEM,j))
+               SBAL(I,IHEM,J)=SALOOK(NINT(SVEGE(I,IHEM,J)))
+               !-----------------------------------------------------
+               ! solar zenith angle (and hence latitude) dependent 
+               ! ocean albedo matches UM in polar regions. Away from
+               ! polar regions is increased to compensate standard IGCM
+               ! having no aerosol to scatter solar radiation
+               !-----------------------------------------------------
+               IF (GSG(I,IHEM,J) .LT. 1.0E-8) THEN
+                  SBAL(I,IHEM,J)=0.13+0.22*
+     &              (1.0-CS(JJ1(iRow)+J,IHEM))
+               ENDIF
+               tstaroo(i,ihem,j)=tstaro(i,ihem,j)
+               tstarf(i,ihem,j)=tstar(i,ihem,j)
+               qstarf(i,ihem,j)=qstar(i,ihem,j)
+               sqstarf(i,ihem,j)=sqstar(i,ihem,j)
+               sicecov(i,ihem,j)=0.0
+*/ ---------------------------------------
+*/ Grow topography
+*/ ---------------------------------------
+*I BALAN.21
+*/ Insert at end of the BALAN comdeck, after:
+*/      REAL :: PMNRE(IDM,IDM,3)
+      COMMON/TOPOGMMJ/GSMMJ,GSGMMJ
+      COMPLEX :: GSMMJ(NNTx,MMTy,NHEM)
+      REAL :: GSGMMJ(MGx,NHEM,JGy)
+*D INISTR.426
+*/ Replace the line:
+*/         CALL SHARECOEF(.TRUE.,NHEM,GSFull,GS)
+         CALL SHARECOEF(.TRUE.,NHEM,GSFull,GSMMJ)
+*D INISTR.444
+*/         CALL SHAREGRID(.TRUE.,MG,1,GSGFull,GSG)
+         CALL SHAREGRID(.TRUE.,MG,1,GSGFull,GSGMMJ) 
+*I INISTR.460
+*/ Insert after:
+*/            DEALLOCATE(GSGFull)
+*/         ENDIF
+         !-----------------------------------------------------
+         ! Set the initial hill
+         !-----------------------------------------------------
+         GSFAC=1.0
+         IF(DAY .LT. 0.1)GSFAC=1.0E-4
+         DO IHEM=1,NHEM
+            DO IM=1,MMTyy(iRow)
+               DO IN=1,NNTxx(iCol)
+                  GS(IN,IM,IHEM)=GSMMJ(IN,IM,IHEM)*GSFAC
+               ENDDO
+            ENDDO
+         ENDDO
+         DO J=1,JGyy(iRow)
+            DO IHEM=1,NHEM
+               DO I=1,MGxx(iCol)
+                  GSG(I,IHEM,J)=GSGMMJ(I,IHEM,J)*GSFAC
+               ENDDO
+            ENDDO
+         ENDDO
+*I MLTRI.612
+*/ The code below needs to follow the lines:
+*/                  AQTBLZ(:,:)=0.0
+*/               ENDIF
+               !-----------------------------------------------------
+               ! Grow topography over 10 days
+               !-----------------------------------------------------
+               IF(DAY.LE.10.0)THEN
+                  GSFAC = DAY*0.1 
+                  if(day.gt.10.0-1./real(itspd))gsfac=1.0
+                  DO IHEM=1,NHEM
+                     DO IM=1,MMTyy(iRow)
+                        DO IN=1,NNTxx(iCol)
+                           GS(IN,IM,IHEM)=GSMMJ(IN,IM,IHEM)*GSFAC
+                        ENDDO
+                     ENDDO
+                  ENDDO
+                  DO J=1,JGyy(iRow)
+                     DO IHEM=1,NHEM
+                        DO I=1,MGxx(iCol)
+                           GSG(I,IHEM,J)=GSGMMJ(I,IHEM,J)*GSFAC
+                        ENDDO
+                     ENDDO
+                  ENDDO
+               ENDIF

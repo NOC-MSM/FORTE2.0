@@ -1,0 +1,65 @@
+%
+% OASIS 2.3 doc
+% -------------
+%
+% 1998 (c) cglo
+%
+% - pagination -
+% 
+\documentstyle[jeep,12pt,psfig]{article}
+\setlength{\topmargin}{0.0cm}
+\setlength{\oddsidemargin}{-.2cm}
+\setlength{\textheight}{24.0cm}
+\setlength{\textwidth}{15.5cm}
+\setlength{\headsep}{.0in}
+\setlength{\footheight}{.0in}
+\setlength{\parindent}{.0in}
+\lfoot{\footnotesize CERFACS TR/CGMC/99-37}
+\rfoot{\footnotesize OASIS 2.3}
+\cfoot{\thepage}
+%
+% - nouvelles commandes -
+%
+\newcommand{\name}[2]{\newpage
+    \noindent \makebox[8.0cm][l]{\large \bf #1} \makebox[7.3cm][r]{\bf #2} 
+    \newline
+    \rule{\textwidth}{0.6mm} \newline
+    \vspace*{1.2cm} \newline
+}
+%
+% - debut doc -
+%
+\small
+\begin{document}
+\bibliographystyle{plain}
+%
+% > couverture
+	\input Coverpage.tex
+%
+% > table des matieres
+        \newpage
+%        \vspace*{1.0cm}
+        \tableofcontents
+%
+% > introduction
+	\input 1_Intro.tex
+	\input 2_Obtaining.tex
+	\input 3_1_Overview.tex
+        \input 3_2_Initialization.tex
+        \input 3_3_Communication.tex
+        \input 3_4_Analyses.tex
+        \input 3_5_Inputfile.tex
+        \input 3_6_Parameters.tex
+        \input 3_7_Auxiliary.tex
+        \input 4_Steps.tex
+% > appendices
+        \input Appendix1.tex
+        \input Appendix2.tex
+        \input Appendix3.tex
+	\input Appendix4.tex
+	\input Appendix5.tex
+%
+\bibliography{oasis}
+\end{document}
+%
+% - fin doc -

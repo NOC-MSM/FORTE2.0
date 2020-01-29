@@ -1,0 +1,40 @@
+*/ =======================================================
+*/ Restart stuff
+*/ =======================================================
+*IDENT NEWRESTART
+*/ ---------------------------------------
+*/ Remove the setting of SBAL, SALB, TSTARO and TDEEPO
+*/ ---------------------------------------
+*D INISURF.136,178
+*/ Remove from lines
+*/!-----------------------------------------------------
+! Albedo field initialised from vegetation index
+*/ to
+*/               tdeepo(I,IHEM,J)=tdeep(I,IHEM,J)
+*/            ENDDO
+*/         ENDDO
+*/      ENDDO
+*/ add on if statement to allocation so it only happens once
+*/ needed for restarting from restart records (rather than lastrestart)
+*D INISURF.67
+       if(daynear.lt.1.0E-5)ALLOCATE(SurfVarsFull(MGPP,NHEM,JG,17))
+*/ Allocate extra dimensions to input arrays and read extra records
+*D INISURF.109,110
+CCC      ALLOCATE(SurfVars(MGx,NHEM,JGy,11))
+CCC      CALL SHAREGRID(.TRUE.,MGPP,11,SurfVarsFull,SurfVars)
+      ALLOCATE(SurfVars(MGx,NHEM,JGy,17))
+      CALL SHAREGRID(.TRUE.,MGPP,17,SurfVarsFull,SurfVars)
+*I INISURF.125
+      TSTAROO(:,:,:)=SurfVars(:,:,:,12)
+      TSTARF(:,:,:)=SurfVars(:,:,:,13)
+      zsst_2d(:,:,:)=SurfVars(:,:,:,14)
+      SICECOV(:,:,:)=SurfVars(:,:,:,15)
+      zscur_2d(:,:,:)=SurfVars(:,:,:,16)
+      mscur_2d(:,:,:)=SurfVars(:,:,:,17)
+C
+*/ change formatting of output for longer dates
+*D READCOEF.72,74
+ 2031 FORMAT(/' ***ABORT*** CANNOT FIND THE CORRECT RESTART RECORD.'/
+     & ' LOOKING FOR DAY',F10.2/,' BUT THE NEAREST RECORD FOUND',
+     & ' IS FOR DAY',F10.2)
+C

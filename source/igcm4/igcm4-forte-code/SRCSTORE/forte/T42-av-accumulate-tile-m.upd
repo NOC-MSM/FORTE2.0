@@ -1,0 +1,183 @@
+*IDENT OAS_ACCUM_TILE
+*B SURFM.20
+*CALL PARAMH
+*CALL AOfields
+*D SURFM.70,71
+                  dwater=(rrcr(I,IHEM,JH)+rrlr(I,IHEM,JH)-
+     $                   wathbl(I,IHEM,JH))*FRN
+*I SURFM.80
+C Soil bucket model: excess goes ito runoff
+                  if (smstar(I,IHEM,jh).gt.ssmc)then
+                    exwat(I,IHEM,jh)=
+     $              (smstar(I,IHEM,jh)-ssmc)*1000.*RADEA
+                    smstar(I,IHEM,jh)=ssmc
+                  endif
+                  if(smstar(I,IHEM,jh).lt.0.)smstar(I,IHEM,jh)=0.
+*B BLSURF.225
+c------get runoff here
+       exwat(I,IHEM,jh)=0.
+       exiwat(I,IHEM,jh)=0.
+       exiwatn(I,IHEM,jh)=0.
+*D BLSURF.231,234
+C Soil moisture conservation done in SURFM
+                  if ((smstar(I,IHEM,jh).gt.ssmc23)
+*I DGRMLT.317
+C
+      tspd =    real(itspd)
+      rkounth = real(kounth)
+      tzc=273.15
+      tm2=(tzc-1.9)/ct    ! Also done in T42.oasis update
+
+      do ihem=1,nhem
+      do I=1,MGxx(iCol)
+
+c-----daily average version
+c don't pass land or sea-ice heat/wind fluxes...
+c NB E-P calculation now done HERE! MUST be used with setvbc.F from 2810
+
+c-----tiling - only pass ocean values for coastal points
+c----Ocean points-----------------------
+      if (gsg(i,ihem,jh).eq.0.0) then
+
+C Water Correction: evap variable is moisture convergence
+        evap=wathbl(i,ihem,jh)
+C atmosphere-ocean thermal fluxes dependent on ice fraction;
+C ocean isolated from atmosphere when ice cover > 0.5 consistent with
+C updating of surface temperature in rest of IGCM
+        if(sicecov(i,ihem,jh).ge.0.5)then
+          sensible2d(i,ihem,jh)=sensible2d(i,ihem,jh) +
+     $    (-1*CV*P0*oceaniceflux(i,ihem)/TSPD)
+        else
+          swlw2d(i,ihem,jh)=swlw2d(i,ihem,jh)+
+     $    snet(i,ihem,jh)/TSPD
+          heatlat2d(i,ihem,jh)=heatlat2d(i,ihem,jh)+
+     $    (-1*CV*P0*slbl(i,ihem,jh)/TSPD)
+          sensible2d(i,ihem,jh)=sensible2d(i,ihem,jh) +
+     $    (-1*CV*P0*shbl(i,ihem,jh)/TSPD)
+        endif
+C atmosphere-ocean momentum fluxes dependent on ice thickness;
+C ocean isolated from atmosphere when covered with thick ice
+        if(tstaro(I,IHEM,jh).ge.TM2)then
+          taux2d(i,ihem,jh)=taux2d(i,ihem,jh) + 
+     $    P0*txbl(i,ihem)/TSPD
+          tauy2d(i,ihem,jh)=tauy2d(i,ihem,jh) + 
+     $    P0*tybl(i,ihem)/TSPD
+        endif
+
+        pp=(rrlr(i,ihem,jh)+rrcr(i,ihem,jh))
+        water2d(i,ihem,jh)=water2d(i,ihem,jh)+(pp-evap)
+
+      else
+
+c----Partial points-----------------------
+        if(ofrac(i,ihem,jh).ne.0. .and. 
+     $  ofrac(i,ihem,jh).ne.1.)then
+
+C Correction for ocean parts of coastal points uses post-coastal tiling
+C evap variable is moisture convergence
+        evap=watsbl(i,ihem,jh)
+C atmosphere-ocean thermal fluxes dependent on ice fraction;
+C ocean isolated from atmosphere when ice cover > 0.5 consistent with
+C updating of surface temperature in rest of IGCM
+        if(sicecov(i,ihem,jh).ge.0.5)then
+          sensible2d(i,ihem,jh)=sensible2d(i,ihem,jh) +
+     $    (-1*CV*P0*oceaniceflux(i,ihem)/TSPD)
+        else
+          swlw2d(i,ihem,jh)=swlw2d(i,ihem,jh) +
+     $    snet(i,ihem,jh)/TSPD
+C Use slblc, shblc: ocean only heat fluxes
+          heatlat2d(i,ihem,jh)=heatlat2d(i,ihem,jh)+
+     $    (-1*CV*P0*slblc(i,ihem,jh)/TSPD)
+          sensible2d(i,ihem,jh)=sensible2d(i,ihem,jh) + 
+     $    (-1*CV*P0*shblc(i,ihem,jh)/TSPD)
+        endif
+C atmosphere-ocean momentum fluxes dependent on ice thickness;
+C ocean isolated from atmosphere when covered with thick ice
+        if(tstaroo(I,IHEM,jh).ge.TM2)then
+          taux2d(i,ihem,jh)=taux2d(i,ihem,jh) + 
+     $    P0*txbl(i,ihem)/TSPD
+          tauy2d(i,ihem,jh)=tauy2d(i,ihem,jh) + 
+     $    P0*tybl(i,ihem)/TSPD
+        endif
+C Scale water balance by OFRAC: (1-OFRAC) done by runoff
+        pp=(rrlr(i,ihem,jh)+rrcr(i,ihem,jh))
+        water2d(i,ihem,jh)=water2d(i,ihem,jh)+
+     $                     (pp-evap)*ofrac(i,ihem,jh)
+        exwater2d(i,ihem,jh)=exwater2d(i,ihem,jh)+
+     $                 exwat(i,ihem,jh)
+        exiwater2d(i,ihem,jh)=exiwater2d(i,ihem,jh)+
+     $                 exiwat(i,ihem,jh)
+        exiwatern2d(i,ihem,jh)=exiwatern2d(i,ihem,jh)+
+     $                 exiwatn(i,ihem,jh)
+
+        else
+c----Land points-----------------------
+        swlw2d(i,ihem,jh)=swlw2d(i,ihem,jh) +
+     $  snet(i,ihem,jh)/TSPD
+        heatlat2d(i,ihem,jh)=heatlat2d(i,ihem,jh)+
+     $  (-1*CV*P0*slbl(i,ihem,jh)
+     $                                /TSPD)
+C Water Correction after coastal tiling: can use wathbl...
+C evap variable is moisture convergence
+
+        evap=watlbl(i,ihem,jh)
+C
+        sensible2d(i,ihem,jh)=sensible2d(i,ihem,jh) + 
+     $   (-1*CV*P0*shbl(i,ihem,jh)/TSPD)
+        taux2d(i,ihem,jh)=taux2d(i,ihem,jh) + 
+     $  P0*txbl(i,ihem)/TSPD
+        tauy2d(i,ihem,jh)=tauy2d(i,ihem,jh) + 
+     $  P0*tybl(i,ihem)/TSPD
+        pp=(rrlr(i,ihem,jh)+rrcr(i,ihem,jh))
+        water2d(i,ihem,jh)=water2d(i,ihem,jh)+(pp-evap)
+        exwater2d(i,ihem,jh)=exwat(i,ihem,jh)+
+     $  exwater2d(i,ihem,jh)
+        exiwater2d(i,ihem,jh)=exiwat(i,ihem,jh)+
+     $  exiwater2d(i,ihem,jh)
+        exiwatern2d(i,ihem,jh)=exiwatn(i,ihem,jh)+
+     $  exiwatern2d(i,ihem,jh)
+
+        end if
+
+      end if
+
+c-------------------------------------
+
+      end do
+      end do
+
+*B MLTRI.92
+c Set oasis exchange arrays to zero only at start of run
+C      IF (mod(kount,ITSPD).eq.0) then
+      IF (kount.eq.0) then
+
+*CALL clear-array
+      ENDIF
+      if(npe.gt.1)CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
+C
+*/
+*/ Include ocean-atmosphere coupling in restart records
+*/ which means 20 fields for I-O rather than 11
+*/
+*/ Write extra records
+*B WRITEGRID.28
+*CALL PARAMH
+*CALL AOfields
+*CALL OAfields
+*D WRITEGRID.81
+C         nLevels=nLevels+11
+         nLevels=nLevels+17
+*I WRITEGRID.125
+         StoreArray(:,:,:,LL+1)=TSTAROO(:,:,:)
+         LL=LL+1
+         StoreArray(:,:,:,LL+1)=TSTARF(:,:,:)
+         LL=LL+1
+         StoreArray(:,:,:,LL+1)=zsst_2d(:,:,:)
+         LL=LL+1
+         StoreArray(:,:,:,LL+1)=SICECOV(:,:,:)
+         LL=LL+1
+         StoreArray(:,:,:,LL+1)=zscur_2d(:,:,:)
+         LL=LL+1
+         StoreArray(:,:,:,LL+1)=mscur_2d(:,:,:)
+         LL=LL+1
+*/

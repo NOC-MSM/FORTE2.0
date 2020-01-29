@@ -1,0 +1,85 @@
+nupdate0.4.6 27th November 1997
+-------------------------------
+
+This is a new version of nupdate to
+cope with the increase in size of 
+umpl for UM 4.4.
+
+Differences from nupdate0.4.5
+----------------------------
+
+1)
+Modify defn.h and increase max_pl_lines
+from 450,000 to 550,000.
+
+Note:umpl vn4.4 has approx. 506,000 lines.
+
+Changes made by Mussadiq Ahmed 27/11/97
+
+----------------------------
+
+2)
+In makefile.other, replace 
+
+clean :
+	rm update mklib rsort
+	rm *.o
+	rm core
+with
+clean :
+	rm -rf nupdate mklib rsort
+	rm -rf *.o
+	rm -rf core
+
+Anette Van der Wal - 17/08/98
+
+----------------------------
+
+3)
+In defn.h, increase max_comdecks from 1500 to 2000 to stop bus error
+on the SGI.
+
+Anette Van der Wal - 17/08/98
+
+----------------------------
+
+4)
+In defn.h increase both max_decks and max_comdecks to 3000 to stop
+memory fault in mklib for um vn4.5.
+
+Anette Van der Wal - 07/09/98
+
+----------------------------
+
+5)
+In mklib.c, added #ifdef SAVELOG around the following lines from create_library:
+
+        fprintf( logfile, "\n%d comdecks processed", cdkname_no  );
+        fprintf( logfile, "\n%d decks processed\n", dkname_no  );
+
+as it was producing a memory fault if compiled without -DSAVE_LOG, since the
+log file was not open in this case.
+
+Anette Van der Wal - 22/09/98
+
+===============================
+
+nupdate0.4.8 04th December 1998
+-------------------------------
+
+New version of nupdate to cope with 
+the extra number of lines in umpl at 4.5
+
+differences from nupdate0.4.7
+----------------------------
+
+1)
+Modify defn.h and increase max_pl_lines
+from 550,000 to 850,000.
+
+2)
+Add in line
+char  *tmpname();
+to process_IBD in proc_dir.c for portability 
+
+

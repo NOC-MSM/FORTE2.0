@@ -1,0 +1,3 @@
+#
+#f77 -r8 -o grid-spec-T42 grid-spec-T42.f /nerc/packages/nag/flsg620da/lib32/mips3/libnag.a
+f77  -xtypemap=real:64 -o grid-spec-T42 grid-spec-T42.f /nerc/packages/nag/flsol20da/libnag.a

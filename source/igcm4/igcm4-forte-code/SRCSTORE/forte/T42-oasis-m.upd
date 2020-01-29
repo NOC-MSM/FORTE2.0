@@ -1,0 +1,297 @@
+*IDENT OAS_TEST
+*/
+*/ Code for printout RMS every timestep for testing
+*/
+*/*D MLTRI.542
+*/*D MLTRI.544
+*/*D MLTRI.548
+*/*D MLTRI.549
+*/               call energy
+*/
+*/ OASIS variables setup
+*/
+*I MLTRI.69
+      INTEGER npas      ! number of timesteps for the simulation
+      INTEGER nexca     ! coupling interval (in timesteps).
+      INTEGER itimestep ! timestep in seconds
+      INTEGER itap, ji, jf, jpos
+      INTEGER counter,ifirstday,start,bs_av1,bs_av2,ibabs
+      LOGICAL last,archts
+
+      real gcouple,restorice,tspd
+
+c
+      EXTERNAL inicma           ! initialize the coupling channels
+      EXTERNAL intocpl          ! sends the fields to Oasis
+      EXTERNAL fromcpl          ! receives the fields from Oasis
+
+! Full 2D variables for OASIS collected from and sent to PEs
+
+      REAL, ALLOCATABLE :: SWLW2DFULL(:,:,:)
+      REAL, ALLOCATABLE :: HEATLAT2DFULL(:,:,:)
+      REAL, ALLOCATABLE :: WATER2DFULL(:,:,:)
+      REAL, ALLOCATABLE :: SENSIBLE2DFULL(:,:,:)
+      REAL, ALLOCATABLE :: TAUX2DFULL(:,:,:)
+      REAL, ALLOCATABLE :: TAUY2DFULL(:,:,:)
+      REAL, ALLOCATABLE :: ZSST_2DFULL(:,:,:)
+      REAL, ALLOCATABLE :: ZSCUR_2DFULL(:,:,:)
+      REAL, ALLOCATABLE :: MSCUR_2DFULL(:,:,:)
+*/
+*/ OASIS initialisation
+*/
+*I MLTRI.91
+c
+      counter=1
+      gcouple=2
+
+      if(npe.gt.1)CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
+      IF(MYPE.EQ.0)THEN
+
+        nexca=1
+        npas=KRUN/ITSPD
+        itimestep=1
+        ifirstday=day
+        start=start+ifirstday
+
+        PRINT * , 'Toyclim: the atmospheric grid is  imb  = ', imb
+        PRINT * , '                               *  jm  = ', jm
+        PRINT * ,'                            so  imjm  = ', imjm
+        PRINT * 
+        PRINT * ,'npas, nexca, itimestep=', npas, nexca, itimestep
+
+c Initialize coupling
+        CALL inicma(npas, nexca, itimestep)
+      ENDIF   ! End MYPE if
+      if(npe.gt.1)CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
+
+*/
+*/ Collect SST field from OASIS
+*/
+*I MLTRI.96
+c IF coupling timestep, get oceanic fields from Oasis
+C At timesteps 0,1,2,3*ITSPD + 1 etc collect SST from MOMA via OASIS
+C This happens in the timestep after calling ALTERWATER and INTOCPL
+
+      IF (MOD( (KOUNT-1),ITSPD).eq.0) THEN
+        if(npe.gt.1)CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
+        IF(MYPE.EQ.0)THEN
+
+          CALL fromcpl(nint(DAY-ifirstday)*nexca, imjm, zsst, 
+     $                 zscur,mscur)
+
+          ALLOCATE(zsst_2dfull(MG,NHEM,JG))
+          ALLOCATE(zscur_2dfull(MG,NHEM,JG))
+          ALLOCATE(mscur_2dfull(MG,NHEM,JG))
+
+          do j=1,jg
+            do i=1,mg
+              zsst_2dfull(i,1,j)=zsst((j-1)*imb+i)
+              zsst_2dfull(i,2,jg-j+1)=zsst((jg+j-1)*imb+i)
+              zscur_2dfull(i,1,j)=zscur((j-1)*imb+i)
+              zscur_2dfull(i,2,jg-j+1)=zscur((jg+j-1)*imb+i)
+              mscur_2dfull(i,1,j)=mscur((j-1)*imb+i)
+              mscur_2dfull(i,2,jg-j+1)=mscur((jg+j-1)*imb+i)
+            end do
+          end do
+
+        endif ! End MYPE if
+        if(npe.gt.1)CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
+
+C     Send ZSST from full arrays to PEs
+        CALL SHAREGRID(.TRUE.,MG,1,zsst_2dfull,zsst_2d)
+        CALL SHAREGRID(.TRUE.,MG,1,zscur_2dfull,zscur_2d)
+        CALL SHAREGRID(.TRUE.,MG,1,mscur_2dfull,mscur_2d)
+
+        IF(MYPE.EQ.0)DEALLOCATE(zsst_2dfull)
+        IF(MYPE.EQ.0)DEALLOCATE(zscur_2dfull)
+        IF(MYPE.EQ.0)DEALLOCATE(mscur_2dfull)
+        if(npe.gt.1)CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
+
+      ENDIF    ! End MOD(KOUNT-1,ITSPD) if
+*/
+*/ Give energy & water balance terms and windstress to OASIS
+*/
+*I MLTRI.151
+
+C At timesteps 0,1,2,3*ITSPD etc collect coupling quantities
+C and call INTOCPL which sends variables to MOMA via OASIS
+
+      IF (MOD(KOUNT,ITSPD).eq.0) THEN
+        if(npe.gt.1)CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
+        IF(MYPE.EQ.0)THEN
+
+c       For last time step, keep files just before coupling
+          last=.FALSE.
+C          IF (nint(day-ifirstday).eq.npas) last=.TRUE.
+          IF (KOUNT2.eq.KTOTAL) last=.TRUE.
+          IF (koutr.eq.KOUNTR) archts=.TRUE.
+
+          ALLOCATE(water2dfull(MG,NHEM,JG))
+          ALLOCATE(swlw2dfull(MG,NHEM,JG))
+          ALLOCATE(heatlat2dfull(MG,NHEM,JG))
+          ALLOCATE(sensible2dfull(MG,NHEM,JG))
+          ALLOCATE(taux2dfull(MG,NHEM,JG))
+          ALLOCATE(tauy2dfull(MG,NHEM,JG))
+
+        ENDIF   ! End mype if
+
+C     Collect data from PEs and send to full arrays
+        CALL SHAREGRID(.FALSE.,MG,1,water2dfull,water2d)
+        CALL SHAREGRID(.FALSE.,MG,1,swlw2dfull,swlw2d)
+        CALL SHAREGRID(.FALSE.,MG,1,heatlat2dfull,heatlat2d)
+        CALL SHAREGRID(.FALSE.,MG,1,sensible2dfull,sensible2d)
+        CALL SHAREGRID(.FALSE.,MG,1,taux2dfull,taux2d)
+        CALL SHAREGRID(.FALSE.,MG,1,tauy2dfull,tauy2d)
+c
+c       Give atmospheric fields to Oasis
+c
+        if(npe.gt.1)CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
+        if(mype.eq.0)then
+          do j=1,jg
+          do i=1,mg
+          swlw((j-1)*imb+i)=swlw2dfull(i,1,j)
+          swlw((jg+j-1)*imb+i)=swlw2dfull(i,2,jg-j+1)
+          heatlat((j-1)*imb+i)=heatlat2dfull(i,1,j)
+          heatlat((jg+j-1)*imb+i)=heatlat2dfull(i,2,jg-j+1)
+          water((j-1)*imb+i)=water2dfull(i,1,j)
+          water((jg+j-1)*imb+i)=water2dfull(i,2,jg-j+1)
+          sensible((j-1)*imb+i)=sensible2dfull(i,1,j)
+          sensible((jg+j-1)*imb+i)=sensible2dfull(i,2,jg-j+1)
+          taux((j-1)*imb+i)=taux2dfull(i,1,j)
+          taux((jg+j-1)*imb+i)=taux2dfull(i,2,jg-j+1)
+          tauy((j-1)*imb+i)=tauy2dfull(i,1,j)
+          tauy((jg+j-1)*imb+i)=tauy2dfull(i,2,jg-j+1)
+          end do
+          end do
+
+          DEALLOCATE(swlw2dfull)
+          DEALLOCATE(heatlat2dfull)
+          DEALLOCATE(sensible2dfull)
+          DEALLOCATE(water2dfull)
+          DEALLOCATE(taux2dfull)
+          DEALLOCATE(tauy2dfull)
+
+          CALL intocpl(nint(DAY-ifirstday)*nexca, imjm, swlw, heatlat
+     $              , water, sensible, taux, tauy, archts, last)
+          archts=.false.
+        ENDIF    ! End MYPE if
+*CALL clear-array      
+        if(npe.gt.1)CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
+      ENDIF  ! End MOD(KOUNT,ITPSD) if
+*/
+*/ Climatology SSTs not read if LOC false
+*/
+*D SFCT.162,180
+*/
+*/ Ocean heat flux file not read in if LOC true
+*/ 
+*D BLSURF.36,38
+*D BLSURF.89
+      SAVE IFIRST, MPth1, MPth2
+*D BLSURF.104,135
+*D INIPHYS.280,282
+C Thickness and heat capacity for MOMA ocean top layer
+      shco=30.*1000.*4190.*CT/P0/RADEA
+C Thickness and heat capacity for ice at -2C; double this at TICESNOW
+      shci=1.0*900.*2100.*CT/P0/RADEA
+*D SURFM.51
+      tm2=(tzc-1.9)/ct    ! Also done in T42.accum
+*D BLSURF.147
+      tm2=(tzc-1.9)/ct    ! Also done in T42.accum
+*/ deletes TM3=(tzc-3.0)/ct line- and gives bit-comparability
+*/ needs check
+*D BLSURF.148
+C Temperature at which ice forms > -1.9C (brine freezing point)
+C because this is the average temperature of a 30m thick layer of ocean
+C Polar ocean is sensitive to this: keep between -1.5 and -0.5C.
+      TICEFORM=(tzc-1.5)/ct
+C Temperature at which albedo of ice is sasnow, also temperature
+C at which ice thickness is SHCI (2m) + thickness > -2C (1m)
+C which is maximum thickness observed in Arctic
+      TICESNOW=(tzc-7.0)/ct
+C Timescale in days of restoring topmost ocean layer to -2C
+C 2 days appropriate if ocean cooled by intense mixing
+      restorice=10.
+      tspd=real(itspd)
+C Warm ice roughness height > -2C < 0C
+      RGZ0IW=1.0E-2/2.2E4
+C Cold ice roughness height =< -2C
+      RGZ0IC=1.0E-2/2.2E4
+*B BLSURF.180
+            oceaniceflux(i,ihem)=0.0
+*I BLSURF.201
+
+c put ssts in here now, Arctic special case first: polewards of 86.5N
+C which is one gridpoint at T42
+
+               if(SI(JJ1(iRow)+JH,IHEM) .gt. 0.9981)then
+C                 if(kount.gt.kstart+1)then
+                 if(kount.gt.1)then
+                   if (LOCH) then
+C Updating of surface temperature depends on sea-ice cover
+                     if(sicecov(i,ihem,jh).lt.0.5)then
+                       tstaro(I,IHEM,JH)=zsst_2d(I,IHEM,JH)*GASCON/CG
+                     else
+                       tscurw=zsst_2d(I,IHEM,jh)*GASCON/CG
+C Relaxation to sea-ice base temp at -2C
+           oceaniceflux(I,IHEM)=(tscurw-max(TSTARO(I,IHEM,JH),tm2))*
+     $                           shco/restorice/tspd/DELT2C
+                     endif
+                  else
+                    tstar(I,IHEM,jh)=zsst_2d(I,IHEM,jh)*GASCON/CG
+                  end if
+                endif
+              endif
+
+c put ssts in here now, moved from SFCT
+
+              if(ofrac(I,IHEM,jh).gt.0)then
+C                if(kount.gt.kstart+1)then
+                if(kount.gt.1)then
+                  if (LOCH) then
+C Updating of surface temperature depends on sea-ice cover
+                    if(sicecov(i,ihem,jh).lt.0.5)then
+                      tstaro(I,IHEM,JH)=zsst_2d(I,IHEM,JH)*GASCON/CG
+                    else
+                      tscurw=zsst_2d(I,IHEM,jh)*GASCON/CG
+C Relaxation to sea-ice base temp at -2C
+              oceaniceflux(I,IHEM)=(tscurw-max(TSTARO(I,IHEM,JH),tm2))*
+     $                           shco/restorice/tspd/DELT2C
+                    endif
+                  else
+                    tstar(I,IHEM,jh)=zsst_2d(I,IHEM,jh)*GASCON/CG
+                  end if
+                endif
+              endif
+*I BLSURF.207
+
+c again, moved from SFCT now that sst assignment moved
+                  escon=1./PLG3(I,IHEM,JH)
+                  sqstar(I,IHEM,JH)=escon*pqsat(tstar(I,IHEM,JH))
+                  qstar(I,IHEM,JH)=sqstar(I,IHEM,JH)
+*D BLSURF.383,386
+c  actually, /don't/ add in extra fluxes - for coupled operation
+                SFC=-shbl(I,IHEM,JH)-slbl(I,IHEM,JH)+
+     &          (snet(I,IHEM,JH))/(CV*P0)
+
+                dts = (sfc +oceaniceflux(I,IHEM))/hc*deltu
+
+C Start brine rejection bit- turned off
+C Below -2C ice thickness increases as Ts decreases.
+C Freshwater flux to ocean is calculated similarly to snowmelt:
+C F = F + water depth change ~= +0.1m per +1C in Tsurf change
+C Over a season this should average to zero and conserve water
+c                if(sicecov(I,IHEM,JH).gt.0.5)
+c     &          water2d(I,IHEM,JH)=water2d(I,IHEM,JH)+
+c     &          dts*CT*0.1*1000.0/RADEA
+C End Brine rejection bit
+
+*I BLSURF.420
+c    only update tstaro in IGCM if sea-ice or land
+               if (sicecov(I,IHEM,JH).ge.0.5 .or. 
+     &         ofrac(I,IHEM,JH).eq.0.)then        
+*I BLSURF.423
+               else
+c     energy consistency, keep tstar=zsst
+                tstar(I,IHEM,jh)=tstaro(I,IHEM,jh)
+               end if

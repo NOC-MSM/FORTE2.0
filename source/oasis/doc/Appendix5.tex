@@ -1,0 +1,57 @@
+\newpage
+\begin{section}{Additional conventions in writing OASIS 2.3 routines}
+\label{app_conventions}
+
+This Appendix contains a brief description of the coding rules
+followed within OASIS 2.3. 
+
+All the fortran routines (but those of the library fscint) have been written
+with the DOCTOR norm from ECMWF (Gibson \cite{doctor}) with the following 
+extensions:
+  \begin{itemize}
+
+      \item Use of the language FORTRAN 5 ANSI 77 with few non-standard
+            extensions (include statements, some cray routines but only 
+            under a ``CRAY'' flag, ...).
+
+      \item The fortran keywords are written in capital letters while
+            all the other character strings are in lower-case characters.
+
+      \item All statements begin into column 7.
+            Some specific indentation rules have been followed in particular
+            for IF and DO statements: two blanks for DO loops and four for
+            IF structures.
+
+      \item A continuation line begins with the character \$ in column 6.
+
+  \end{itemize}
+
+Other rules widely used within OASIS are the following:
+  \begin{itemize}
+
+      \item Each routine begins with a header including the routine
+            title, its purpose, the method, the I/O interface, the
+            references and details about the history of changes.
+
+
+      \item Every routine is subdivided in numbered paragraphs.
+            The DO-loop and others labels within one paragraph
+            begin with the paragraph number.
+
+      \item All routines (but some auxilary ones) first print a banner
+            including the name of the routine and a short description
+            of the task being performed.
+            A FLUSH is performed on the coupler output file {\em cplout}
+            at the end of every routine.
+
+      \item Two (1 integer, 1 real) big arrays (nwork, work) with fixed 
+            dimensions (defined in parameter.h) are used 
+            as temporary arrays in many OASIS routines. This technique
+            is safe as the arrays are put to zero  before
+            using them.
+
+  \end{itemize}
+
+
+
+\end{section}

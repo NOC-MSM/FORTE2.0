@@ -1,0 +1,146 @@
+#!/bin/sh
+##############################################################################
+#                             script_comp_run                                #
+##############################################################################
+ 
+# Script to submit to compile the coupler using the CLIM communication technique
+
+FORTEDIR=/hpcdata/working/atb299/FORTE2_ATB2
+HOMEOA=$FORTEDIR/source/oasis
+HOMETOY=$HOMEOA/toyclim
+DIRWORK=$HOMETOY/wkdir.basic
+
+###   Linux, Intel 2017 Compiler, UEA HPC
+
+#       FC="ifort -fpe0 -fpp2 -O3 -mp1 -ipo -static -align -auto -r8 -i4";
+#       F90="ifort -fpe0 -fpp2 -O3 -mp1 -ipo -static -align -auto -r8 -i4";
+
+## Change to HPC
+
+       FC="ifort -fpe0 -fpp -O0 -mp1 -align -auto -r8 -i4";
+       F90="ifort -fpe0 -fpp -O0 -mp1 -align -auto -r8 -i4";
+
+       CC="icc -ip";
+
+	F77=${FC} ;
+
+###    PVM options for standard Linux install
+        PVM_ROOT=$FORTEDIR/source/pvm3
+        PVM_ARCH=LINUX64
+
+	PVMLIB="-L${PVM_ROOT}/lib/${PVM_ARCH} -lfpvm3 -lgpvm3 -lpvm3" ;
+	PVMINCLUDE=${PVM_ROOT}/include/fpvm3.h ;
+	OPTSF90="" ;
+	OPTSF77=${OPTSF90} ;
+	OPTSLDR=${OPTSF90} ;
+	AR=xiar;
+        ARFLAGS=rv;
+	ASSCOM="echo ";
+	PATH="$PATH:${PVM_ROOT}/lib/${PVM_ARCH}:${PVM_ROOT}/bin/${PVM_ARCH}" ;
+###
+### 4- Define the path of Oasis and of the toy coupled model
+#
+#############################################################################
+###################### END OF USER INTERFACE ################################
+#############################################################################
+DUMOASIS='dummypipe dummysvipc dummysrc' ;
+#
+# Create working directory DIRWORK if necessary and go in there
+#
+[ -d $DIRWORK ] || mkdir $DIRWORK
+cd $DIRWORK
+#
+# Remove old directories if they exist
+#
+if [ -d Clim ] 
+then
+    \rm -fr Clim
+fi
+
+if [ -d Cpl ] 
+then
+    \rm -fr Cpl
+fi
+
+################# PREPARATION OF OASIS MAKEFILE (if 1st run) ###############
+#
+if [ ! -d Clim ] 
+then
+    mkdir Cpl
+    cd Cpl
+    cp -r $HOMEOA/include .
+    cp -r $HOMEOA/lib .
+    cp -r $HOMEOA/src .
+    cp -r $HOMETOY/Cpl/Make/Makefile_clim .
+    #
+    # Prepare makefile for coupler
+    #
+    cat <<EOF >Makefile
+#
+LIBOASIS	=	${DIRWORK}/Cpl/liboasis2.2.a
+LIBPVM	=	${OPTSLDR} ${PVMLIB}
+CMD	=	oasis 
+F77	=	${F77}
+F90	=	${F90}
+CC	=	${CC}
+OPTSF77	=	${OPTSF77}
+OPTSF90	=	${OPTSF90}
+AR	=	${AR}
+ARFLAGS	=	${ARFLAGS}
+PVM_ARCH=       ${PVM_ARCH}
+
+SRCD = \\
+EOF
+
+#
+# complete Makefile with dummies files sources
+#
+for DUMMY in $DUMOASIS
+do 
+echo -n "\$(DUMMYDIR)/${DUMMY}.f " >>Makefile
+done
+echo "" >>Makefile
+cat <<EOF >>Makefile
+OBJD = \\
+EOF
+
+#
+# complete Makefile with dummies files object
+#
+for DUMMY in $DUMOASIS
+do 
+DUMMYO=${DUMMY}.o
+echo -n "\$(DUMMYDIR)/${DUMMYO} " >>Makefile
+done
+echo "" >>Makefile
+
+    cat Makefile_clim >>Makefile
+    cd ..
+
+fi
+#
+############################### COMPILATION ################################
+#
+# 1- Compile CLIM objects that will be used by both models 
+#
+mkdir Clim
+cd Clim
+cp $HOMEOA/lib/clim/src/*.[Fc] .
+cp $HOMEOA/lib/clim/include/*.h .
+cp $HOMETOY/Oce/Inc/clim.h .
+cp $PVMINCLUDE .
+$FC $OPTSF77 -c *.F
+$CC -D$PVM_ARCH  -c wallclk.c
+cd ..
+#
+# 2- Compile the coupler OASIS:
+#
+pwd
+cd Cpl
+#
+make
+#exit
+ls oasis && echo 'cpl ok'
+cd ..
+cp Cpl/oasis .
+#

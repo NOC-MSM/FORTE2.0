@@ -1,0 +1,303 @@
+*/ -------------------------------------------------
+*/ IGCM3.2 SURFACE AND BL PROPERTIES UPDATE:
+*/ 1.  SURFACE TYPE-DEPENDENT PROPERTIES
+*/ 2.  SNOW PROCESSES AND BUG FIXES
+*/ 3.  SEA-ICE PROCESSES AND BUG FIXES
+*/ 4.  BL STABILITY FUNCTION
+*/ 5.  STRESS AND WIND PARAMETERISATION FOR OPEN OCEAN
+*/ --------------------------------------------------- 
+*/
+*IDENT SURF_TYPE_BL
+*/ --------------------------------------- 
+*/ 1.  LAND SURFACE AND VEGETATION TYPE-DEPENDENT PROPERTIES
+*/ ---------------------------------------
+*/ First row is ocean, ice, inland water
+*/ second row are the trees types
+*/ third row are grasses
+*/ fourth row is agriculture
+*/ fifth row is tundra, swamp, desert
+*/ In reality gridpoints are a sum of many types so
+*/ these "types" are approximations to obs of each types
+*/
+*D INISURF.48,51
+
+C Vegetation-albedo tuned to observations and lack of aerosol
+
+*/ Replace the extended line begining:
+*/        DATA SALOOK /0.1, 0.75, ...
+       DATA SALOOK /0.10, 0.80, 0.20,
+     & 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25,
+     & 0.25, 0.25, 0.25, 0.25,
+     & 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25,
+     & 0.50, 0.20, 0.30/
+
+*/ ---------------------------------------
+*/ Make the read of surface vegetation formatted - rather than
+*/ unformatted.
+*/ ---------------------------------------
+*D INISURF.130,135
+*/ Replace the lines:
+*/      OPEN(UNIT=31,FILE='vegetation.dat',FORM='UNFORMATTED')
+*/      READ(31) SvegeFull
+      if(mype.eq.0)then
+      ALLOCATE(SvegeFull(MGPP,NHEM,JG))
+      OPEN(UNIT=31,FILE='vegetation.dat',FORM='FORMATTED')
+      READ(31,*) SvegeFull
+      CLOSE(31)
+      endif
+      CALL SHAREGRID(.TRUE.,MGPP,1,SvegeFull,SVEGE)
+      if(mype.eq.0)DEALLOCATE(SvegeFull)
+      if(npe.gt.1)CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
+
+*I SURFM.38
+*/ Insert after the line:
+*/      REAL :: DWATER
+      REAL :: SHSLOOK(24)
+*D SURFM.44,47
+
+C Snow-covered albedo as a function of land surface
+
+       DATA SNOLOOK /0.8, 0.8, 0.8,
+     & 0.7, 0.7, 0.7, 0.7, 0.7, 0.7, 0.7,
+     & 0.8, 0.8, 0.8, 0.8,
+     & 0.8, 0.8, 0.8, 0.8, 0.8, 0.8, 0.8,
+     & 0.8, 0.8, 0.8/
+
+C The height at which albedo = (snow-free+SNOLOOK)/2
+C should be dependent on land surface type (approximately done here)
+C Low values balance high IGCM snow density
+
+       DATA SHSLOOK /0.05, 0.05, 0.05,
+     & 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,
+     & 0.1, 0.1, 0.1, 0.1,
+     & 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,
+     & 0.05, 0.05, 0.05/
+*/
+*/ Ocean and sea-ice roughnessL varies linearly from ice (0.1mm)
+*/ at -2C to ocean (in SZLOOK array) at 0C
+*/
+*D BLSURF.53
+C      REAL :: RGZ0L, RGZ0O
+      REAL :: RGZ0L, RGZ0O, RGZ0IW, RGZ0IC
+*D BLSURF.94,97
+
+C Roughness length as a function of land surface type or ocean
+
+       DATA SZLOOK /0.0001,0.03,0.001,
+     & 0.1,0.1,0.1,0.1,0.1,0.1,0.1,
+     & 0.05,0.05,0.05,0.05,
+     & 0.05,0.05,0.05,0.05,0.05,0.05,0.05,
+     & 0.03,0.03,0.03/
+*D BLSURF.167,174
+*D BLSURF.204
+*I BLSURF.211
+C Used with VMPCD code: Cd increases with windspeed
+               RGZ0O=SZLOOK(NINT(SVEGE(I,IHEM,JH)))/2.2E4
+C Ice Roughness length depends on Tsurf
+               RGZ0=RGZ0O
+               if(tscur.le.tz)RGZ0=RGZ0IW
+               if(tscur.le.tm2)RGZ0=RGZ0IC
+*/ --------------------------------------- 
+*/ 2.  SNOW PROCESSES AND BUG FIXES
+*/ ---------------------------------------
+*/ The bug fixes decribed below,
+*/ `There is a bug in SURFM.74: 
+*/ It should be snolook minus sbal, not snolook minus salb,ie:
+*/ A=Ag+(As-Ag)*(Hsnow/Hsnow+F)), NOT A=Ag+(As-A)*(Hsnow/Hsnow+F))'
+*/ where the line reference refers to the original non-parallel 
+*/ code, has been put into the code - and so is no longer needed.
+*/ 
+*/ Implement land surface dependent height over which albedo changes
+*/ ---------------------------------------
+*D SURFM.92
+*/ Replace the line:
+*/     &                    (hsnow(I,IHEM,jh)+shsstar)
+     &                    (hsnow(I,IHEM,jh)+
+     &                    shslook(NINT(SVEGE(I,IHEM,JH)))/radea)
+*/ ---------------------------------------
+*/ Snowmelt is now allowed over icecaps (SVEGE=2) to conserve water
+*/ *D BLSURF.350
+*/ ---------------------------------------
+*/ Latent heating under snow formation does not happen in IGCM
+*/ but cooling after snow melting does which is an imbalance,
+*/ corrected by removing surf temp adjustment after snowmelt.
+*/ Let melting snow moisten soil by prescribing minimum SMSTAR
+*/ which alleviates warm summer bias after snowmelt.
+*/ Warning: instability can result if SMSTAR changes too much
+*/ ---------------------------------------
+*D BLSURF.361
+*/ Insert after the line and delete tscur=tz:
+*/                        hsnow(I,IHEM,jh)=hsnow(I,IHEM,jh)
+*/     &                       -(tscur-tz)*hc1/(slhf*sdsn)/2.
+*/                        tscur=tz
+C Soil moisture calculation now handled in runoff code above
+C                        smstar(i,ihem,jh) = 
+C     &                  max(smstar(i,ihem,jh),ssmc23)
+C
+C                        smstar(I,IHEM,jh) = smstar(I,IHEM,jh)
+C     &                  +(tscur-tz)*hc1/(slhf*sdw)/2.
+*/
+*/ Bug fix- add freezing to deep soil heat capacity
+*/
+*D BLSURF.337,338
+                  if ((tdcur.gt.tm3).and.(tdcur.lt.tp1))
+     &                 pc2=pc2+shcsp
+*/ ---------------------------------------
+*/ FORTE:
+*/ Limit snow depth to between zero and SHSMAX which is 4m
+*/ At coastal points change albedo only where ocean fraction < 0.5
+*/ ---------------------------------------
+*D INIPHYS.276
+      SHSMAX=4.0/RADEA
+*D SURFM.82
+                     if(ofrac(i,ihem,jh).lt.0.5)
+     &               salb(I,IHEM,jh)=sbal(I,IHEM,jh)
+                     hsnow(i,ihem,jh) = 0.0
+*D SURFM.89
+                     if(ofrac(i,ihem,jh).lt.0.5)
+     &               salb(I,IHEM,jh)=sbal(I,IHEM,jh)+
+
+*/ *I SURFM.83
+*/ IN FORTE icecap (SVEGE=2)snow depth fixed at SHSMAX
+*/ --------------------------------------- 
+*/ 3.  SEA-ICE PROCESSES AND BUG FIXES
+*/ ---------------------------------------
+*/ ---------------------------------------
+*/ Smoothly vary hc, OCF, SBAL from 271K (sea-ice) to 273K (water)
+*/ Better approach than sudden jump at 271K as in IGCM3
+*/ --------------------------------------- 
+*D BLSURF.372,379
+               if (sicecov(i,ihem,jh).ge.0.5)then
+
+C SHCI constant: snow conductivity very low
+                 hc=shci
+C     $              +log(tm2-tscur+1.0)*shci/log(tm2-ticesnow+1)
+C
+               elseif(tscur.gt.tm2.and.sicecov(i,ihem,jh).ge.0.5)then
+                 hc=shci
+               else
+C Without ice heat capacity is that of ocean
+                 hc=shco
+               endif
+
+*D BLSURF.388,405
+*/ ---------------------------------------
+*/ The IF statement that makes albedo equal to sea ice should apply
+*/ to sea points when LOC is FALSE as well as TRUE so tweak logic
+*/ ---------------------------------------
+                  tscur=tscur+dts
+
+               endif
+            enddo
+
+            if(GSG(I,IHEM,jh).le.0.)then
+
+C At end of iteration add to sea-ice fractional cover if Ts<TICEFORM
+C over a timescale of a day- avoids 2dT waves but synoptically short
+C Formulation allows for hysteresis
+              if(tscur.le.TICEFORM)
+     :        sicecov(I,IHEM,jh)=min(sicecov(I,IHEM,jh)+1.0/TSPD,1.0)
+C If Ts>0C remove ice over one day
+              if(tscur.gt.tz)
+     :        sicecov(I,IHEM,jh)=max(sicecov(I,IHEM,jh)-1.0/TSPD,0.0)
+*/
+*/ Sea-ice and snow albedo based on SICECOV and Tscur
+*/
+C Above 0C albedo based on ice cover
+              if(tscur.gt.TZ)then
+                salb(I,IHEM,jh)=sbal(i,ihem,jh)+
+     :          (salb(I,IHEM,jh)-sbal(i,ihem,jh))*sicecov(i,ihem,jh)
+C Below 0C, Albedo is MAX(present SALB,diagnosed SALB from sea-ice)
+C representing ice staying covered with snow until final melting
+              elseif(tscur.gt.TICEFORM.and.tscur.le.tz)then
+                salb(I,IHEM,jh)=max(sbal(i,ihem,jh)+
+     :          (saice-sbal(i,ihem,jh))*sicecov(i,ihem,jh),
+     :                          salb(I,IHEM,jh))
+C Below TICEFORM, Albedo is MAX(present SALB,diagnosed SALB from snow)
+C representing ice staying covered with snow until final melting
+              elseif(tscur.ge.TICESNOW.and.tscur.le.TICEFORM)then
+                salb(I,IHEM,jh)=max(sasnow+
+     :          (saice-sasnow)*(tscur-TICESNOW)/(TICEFORM-TICESNOW),
+     :                          salb(I,IHEM,jh))
+C Below TICESNOW ice completely snow-covered
+              else
+                salb(I,IHEM,jh)=sasnow
+              endif
+
+C ice-free wind-based whitecaps and seasalt parameterisation
+C based on (U-Threshold)^3 (similar to dust raising)
+C EXPERIMENTAL AND TURNED OFF FOR NOW
+C              if(sicecov(i,ihem,jh).le.1.0e-5)salb(I,IHEM,jh)=
+C     :        min(sbal(i,ihem,jh)+max(0.0E-4*((VMPCD-5.0)**3),0.0),0.6)
+
+*/ Replace the lines:
+*/               endif
+*/            enddo
+*/ that come before:
+*/            !-----------------------------------------------------
+*/            ! End of iteration process, done full double timestep.
+*/ with:
+            endif
+*/
+*/ Change sea-ice albedo 
+*/ and write output to check not overwritten in jobdeck
+*/
+*D INIPHYS.269
+      sasnow=0.80  ! albedo of snow over ice (land snow set in SNOLOOK)
+*D INIPHYS.270
+      saice=0.60  ! ice albedo
+      if(mype.eq.0)then
+      print*,'***********************************'
+      print*,'*                                 *'
+      print*,'*  DOUBLE CHECK SEA ICE IS NOT    *'
+      print*,'*          OVERWRITTEN            *'
+      print*,'*          IN JOB DECK            *'
+      print*,'*                                 *'
+      print*,'*                                 *'
+      print*,'***********************************'
+      endif
+*/ ---------------------------------------
+*/ 4.  BL STABILITY FUNCTION
+*/ ---------------------------------------
+*D BLSURF.291,299
+C Enhancement of surface-air transfer when unstable
+C VMP=VM+5*BLVB should be VMP=VM+VM*BLVB from Forster et al 2000
+C 5.95*RLZZO2 = 1/Cd; RGZ0 includes a factor of g
+C Limit BLVB to 4*VM gustiness factor
+
+               IF (DTH.GT.0.)
+     $         BLVB(I,IHEM)=5.95*RLZZ02*SQRT(RGZ0*DTH/THBAR)
+               VMP=VM+VM*MIN(BLVB(I,IHEM)*CV,4.0)
+C Bug fix: add calculation of BLVBS
+               blvbs=blvbs+BLVB(I,IHEM)/real(maxiter)
+*/ ---------------------------------------
+*/ 5.  STRESS AND WIND PARAMETERISATION FOR OPEN OCEAN
+*/ ---------------------------------------
+*I BLSURF.85
+       REAL VMPCD
+       REAL TICEFORM  ! Temperature at which ice forms
+       REAL TICESNOW  ! Temperature at which ice covered with snow
+*D BLSURF.265,270
+*I BLSURF.256
+               !-----------------------------------------------------
+               ! CALCULATE WIND SPEED, INCLUDING MINIMUM             
+               !-----------------------------------------------------
+C Surface winds used by BL routine UG3CUR,VG3CUR are
+C atmospheric winds minus nondimensionalised surface current
+               VM=SQRT(RCSJ*(UG3CUR*UG3CUR+
+     &              VG3CUR*VG3CUR))
+               VMP=VM+BLVAD
+               VMPCD=MIN(VMP*CV,40.0)
+*I BLSURF.260
+C Ocean Cd=f(Z0)+f(VMP); Max Cd=0.003 at VMP=40m/s without ice cover
+C From Wu (1980) JPO v10 p727; assumes V(NL)~=(4/3)**V(10m)
+               if(GSG(I,IHEM,JH).le.0.0.and.sicecov(i,ihem,jh).lt.0.5)
+     &         CD=CD+5.6E-5*VMPCD
+C increase southern ocean Cd: continuous swell means more surface area
+C experimental and commented out
+C              CD=CD*(1.0+
+C     &         0.2*exp(-((SI(JJ1(iRow)+J,IHEM)+0.87)/0.15)**2))
+*/
+*B MLTRI.68
+*/ Add above the Loop variables:
+      REAL :: GSFAC

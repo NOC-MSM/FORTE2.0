@@ -1,0 +1,30 @@
+#!/bin/sh
+
+#Linux Intel compiler
+#F77FLAGS='-fpp2 -xSSE2 -O3 -mp1 -ipo -static -align -auto -r8 -i4'
+F77FLAGS='-fpe0 -O2 -real-size 64 -integer-size 32 -double-size 64'
+FC='ifort'
+CC='icc'
+MACH='x86_64'
+
+export FC
+export F77FLAGS
+export MACH
+
+cd kd/src
+for i in aux blas fft util
+  do echo $i
+    cd $i
+    make clean
+    make
+    cd ../
+  done
+
+cd ../../Clim
+
+ $FC $F77FLAGS -c *.F
+ $CC -c wallclk.c
+
+cd ../nupdate
+  
+  make -f makefile

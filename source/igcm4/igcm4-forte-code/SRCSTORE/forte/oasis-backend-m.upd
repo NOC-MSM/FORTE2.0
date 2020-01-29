@@ -1,0 +1,852 @@
+*IDENT OAS_BACKEND
+*COMDECK PARAMCOUH
+C
+C -- param_cou.h
+C
+      INTEGER jpmaxfld
+      PARAMETER(jpmaxfld = 20)
+      INTEGER jpflda2o1
+      PARAMETER(jpflda2o1 = 4)
+      INTEGER jpflda2o2
+      PARAMETER(jpflda2o2 = 4)
+C
+      INTEGER jpfldo2a
+      PARAMETER(jpfldo2a = 3)
+C
+*COMDECK OASISH
+C
+C -- oasis.h   
+C    ******
+C@
+C@  Contents : choice for the OASIS version: clim or pipe
+C@  --------
+      CHARACTER*8 cchan
+      PARAMETER ( cchan='CLIM' )
+C
+C     --- end of oasis.h
+*COMDECK INCCPLH
+C
+C -- inc_cpl.h  
+C    **********
+C@
+C@  Contents : variables describing field restart file names 
+C@  --------
+C@
+C@ -- cl_write/cl_read  : for fields to write/READ
+C@ -- cl_f_write/cl_f_read  : for fields to write/read
+C@
+C     -----------------------------------------------------------------
+C
+      CHARACTER*8 cl_writ(jpmaxfld), cl_read(jpmaxfld)
+      CHARACTER*8 cl_f_writ(jpmaxfld), cl_f_read(jpmaxfld)
+      COMMON / comcpl / cl_writ, cl_read, cl_f_writ, cl_f_read
+C     -----------------------------------------------------------------
+*COMDECK CLIMH
+C
+C     - - - - - - - - - - - - - - - - - - - - - - - - -
+C
+C*    =clim.h=  CLIM 1.1 include file 
+C	        Coupling Library for Interfacing Models
+C
+C     - - - - - - - - - - - - - - - - - - - - - - - - -
+C
+      INTEGER*4 CLIM_Void
+C
+      INTEGER*4	CLIM_MaxMod,
+     *          CLIM_MaxPort,   
+     *          CLIM_MaxSegments,
+     *          CLIM_MaxTag,
+     *          CLIM_MaxLink,
+     *          CLIM_ParSize,
+     *          CLIM_Clength
+C
+      INTEGER*4 CLIM_In,        CLIM_Out,       CLIM_InOut
+C
+      INTEGER*4 CLIM_Strategy,  CLIM_Serial,
+     *          CLIM_Apple,     CLIM_Orange,    CLIM_Box,
+     *          CLIM_Segments,  CLIM_Length,    CLIM_Offset,
+     *          CLIM_SizeX,     CLIM_SizeY,     CLIM_LdX
+C
+      INTEGER*4 CLIM_Integer,   CLIM_Real,      CLIM_Double
+C
+      INTEGER*4 CLIM_StopPvm,   CLIM_ContPvm
+C
+      INTEGER*4	CLIM_MaxCodes,  CLIM_Ok,
+     *          CLIM_FastExit,  CLIM_BadName,   CLIM_BadPort,
+     *          CLIM_BadType,   CLIM_DoubleDef, CLIM_NotStep,
+     *          CLIM_IncStep,   CLIM_IncSize,   CLIM_NotClim,
+     *          CLIM_TimeOut,
+     *          CLIM_Pvm,       CLIM_FirstCall, CLIM_PbRoute,
+     *          CLIM_Group,     CLIM_BadTaskId, CLIM_NoTask,
+     *          CLIM_InitBuff,  CLIM_Pack,      CLIM_Unpack,
+     *          CLIM_Down,      CLIM_PvmExit
+C
+C-----Parameter sizes
+C
+      PARAMETER ( CLIM_Void    = 0  )
+      PARAMETER ( CLIM_MaxMod  = 8 )
+      PARAMETER ( CLIM_MaxPort = 40 )
+      PARAMETER ( CLIM_MaxSegments = 160 )
+      PARAMETER ( CLIM_MaxLink = CLIM_MaxMod * CLIM_MaxPort )
+      PARAMETER ( CLIM_ParSize = 2 * CLIM_MaxSegments + 2 )
+      PARAMETER ( CLIM_MaxTag  = 16777215 )
+      PARAMETER ( CLIM_Clength = 32 )
+C
+C-----Ports status
+C
+      PARAMETER ( CLIM_In      = 1 )
+      PARAMETER ( CLIM_Out     = 0 )
+      PARAMETER ( CLIM_InOut   = 2 )
+C
+C-----Parallel distribution
+C
+      PARAMETER ( CLIM_Strategy = 1 )
+      PARAMETER ( CLIM_Segments = 2 )
+      PARAMETER ( CLIM_Serial   = 0 )
+      PARAMETER ( CLIM_Apple    = 1 )
+      PARAMETER ( CLIM_Box      = 2 )
+      PARAMETER ( CLIM_Orange   = 3 )
+      PARAMETER ( CLIM_Offset   = 2 )
+      PARAMETER ( CLIM_Length   = 3 )
+      PARAMETER ( CLIM_SizeX    = 3 )
+      PARAMETER ( CLIM_SizeY    = 4 )
+      PARAMETER ( CLIM_LdX      = 5 )
+C
+C-----Datatypes
+C
+      PARAMETER ( CLIM_Integer = 1 )
+      PARAMETER ( CLIM_Real    = 4 ) 
+      PARAMETER ( CLIM_Double  = 8 )
+C
+C-----Quit parameters
+C
+      PARAMETER ( CLIM_ContPvm = 0 )
+      PARAMETER ( CLIM_StopPvm = 1 )
+C
+C-----Error Codes
+C
+      PARAMETER ( CLIM_MaxCodes  = -21 )
+C
+      PARAMETER ( CLIM_Ok        = 0 )
+      PARAMETER ( CLIM_FastExit  = -1 )
+      PARAMETER ( CLIM_BadName   = -2 )
+      PARAMETER ( CLIM_BadPort   = -3 )
+      PARAMETER ( CLIM_BadType   = -4 )
+      PARAMETER ( CLIM_DoubleDef = -5 )
+      PARAMETER ( CLIM_NotStep   = -6 )
+      PARAMETER ( CLIM_IncStep   = -7 )
+      PARAMETER ( CLIM_IncSize   = -8 )
+      PARAMETER ( CLIM_NotClim   = -9 )
+      PARAMETER ( CLIM_TimeOut   = -10 )
+      PARAMETER ( CLIM_Pvm       = -11 )
+      PARAMETER ( CLIM_FirstCall = -12 )
+      PARAMETER ( CLIM_PbRoute   = -13 )
+      PARAMETER ( CLIM_Group     = -14 )
+      PARAMETER ( CLIM_BadTaskId = -15 )
+      PARAMETER ( CLIM_NoTask    = -16 )
+      PARAMETER ( CLIM_InitBuff  = -17 )
+      PARAMETER ( CLIM_Pack      = -18 )
+      PARAMETER ( CLIM_Unpack    = -19 )
+      PARAMETER ( CLIM_Down      = -20 )
+      PARAMETER ( CLIM_PvmExit   = -21 )
+C
+C-----End of clim.h
+*DECK INICMA
+c
+C****
+C
+C**** *INICMA*  - Initialize coupled mode communication for atmosphere
+C                 and exchange some initial information with Oasis
+C
+C     Input:
+C     -----
+C       KASTP  : total number of timesteps in atmospheric model
+C       KEXCH  : frequency of exchange (in time steps)
+C       KSTEP  : length of timestep (in seconds)
+C
+C     -----------------------------------------------------------
+C
+      SUBROUTINE inicma(kastp,kexch,kstep)
+c
+*CALL PARAMH
+c
+      INTEGER kastp, kexch, kstep
+      INTEGER iparal(3)
+      INTEGER ifcpl, idt, info, imxtag, istep, jf
+c
+*CALL PARAMCOUH
+*CALL INCCPLH
+      CHARACTER*3 cljobnam      ! experiment name
+      CHARACTER*6 clmodnam      ! model name
+      CHARACTER*5 cloasis       ! coupler name (Oasis)
+      INTEGER imess(4)
+      INTEGER getpid            ! system functions
+      INTEGER nuout
+      PARAMETER (nuout = 6)
+c
+*CALL CLIMH
+c
+c     INCLUDE 'oasis.h' ! contains the name of communication technique.
+c                       ! Here cchan=CLIM only is possible.
+*CALL OASISH
+c
+C     -----------------------------------------------------------
+C
+C*    1. Initializations
+C        ---------------
+C
+      WRITE(nuout,*) ' '
+      WRITE(nuout,*) ' '
+      WRITE(nuout,*) ' ROUTINE INICMA'
+      WRITE(nuout,*) ' **************'
+      WRITE(nuout,*) ' '
+      WRITE(nuout,*) ' '
+c
+c     Define the model name
+c
+      clmodnam = 'toyatm'    ! as in $NBMODEL in Cpl/Nam/namcouple.tmp
+c
+c     Define the coupler name
+c
+      cloasis = 'Oasis'     !  always 'Oasis' as in the coupler
+c
+c
+c     Define symbolic name for fields exchanged from atmos to coupler,
+c         must be the same as (1) of the field  definition in namcouple:
+c
+      cl_writ(1)='CONSFTOT'
+      cl_writ(2)='COSHFTOT'
+      cl_writ(3)='COWATFLU'
+      cl_writ(4)='CORUNOFF'
+      cl_writ(5)='COZOTAUX'
+      cl_writ(6)='COMETAUY'
+      cl_writ(7)='COZOTAUV'
+      cl_writ(8)='COMETAUU'
+c
+c     Define files name for fields exchanged from atmos to coupler,
+c         must be the same as (6) of the field  definition in namcouple:
+c
+c     cl_f_writ(1)='flxatmos'
+c     cl_f_writ(2)='flxatmos'
+c     cl_f_writ(3)='flxatmos'
+c     cl_f_writ(4)='flxatmos'
+c     cl_f_writ(5)='flxatmos'
+c     cl_f_writ(6)='flxatmos'
+c     cl_f_writ(7)='flxatmos'
+c     cl_f_writ(8)='flxatmos'
+      cl_f_writ(1)='flxocean'
+      cl_f_writ(2)='flxocean'
+      cl_f_writ(3)='flxocean'
+      cl_f_writ(4)='flxocean'
+      cl_f_writ(5)='flxocean'
+      cl_f_writ(6)='flxocean'
+      cl_f_writ(7)='flxocean'
+      cl_f_writ(8)='flxocean'
+c
+c
+c Define symbolic name for fields exchanged from coupler to atmosphere,
+c must be the same as (2) of the field  definition in namcouple:
+c
+      cl_read(1)='SISUTESU'
+      cl_read(2)='SIZONCUR'
+      cl_read(3)='SIMERCUR'
+c
+c Define files names for fields exchanged from coupler to atmosphere,
+c must be the same as (7) of the field  definition in namcouple:
+c
+      cl_f_read(1)='sstatmos'
+      cl_f_read(2)='sstatmos'
+      cl_f_read(3)='sstatmos'
+c
+c     Define infos to be sent initially to oasis
+c
+      imess(1) = kastp  ! total number of timesteps in atmospheric model
+      imess(2) = kexch  ! period of exchange (in time steps)
+      imess(3) = kstep  ! length of atmospheric timestep (in seconds)
+      imess(4) = getpid()   ! PID of atmospheric model
+c
+c     Initialization and exchange of initial info in the CLIM technique
+c
+      IF (cchan.eq.'CLIM') THEN
+c
+c     Define the experiment name :
+c
+          cljobnam = 'CLI'      ! as $JOBNAM in namcouple
+c
+c         Start the coupling 
+c   (see lib/clim/src/CLIM_Init for the definition of input parameters)
+c
+          CALL CLIM_Init ( cljobnam, clmodnam, 3, 71,
+     *                 kastp, kexch, kstep,
+     *                 5, 3600, 3600, info )
+c
+
+          IF (info.ne.CLIM_Ok) THEN
+              WRITE ( nuout, *) ' inicma : pb init clim '
+              WRITE ( nuout, *) ' error code is = ', info
+              CALL halte('STOP in inicma')
+            ELSE
+              WRITE(nuout,*) 'inicma : init clim ok '
+          ENDIF
+c
+c For each coupling field, association of a port to its symbolic name
+c
+c -Define the parallel decomposition associated to the port of each
+c          field; here no decomposition for all ports.
+          iparal ( clim_strategy ) = clim_serial 
+          iparal ( clim_length   ) = imjm
+          iparal ( clim_offset   ) = 0
+c
+c         -Loop on total number of coupler-to-atmosphere fields
+c (see lib/clim/src/CLIM_Define for the definition of input parameters)
+          DO jf=1, jpfldo2a
+            CALL CLIM_Define (cl_read(jf), clim_in , clim_double, iparal
+     $          , info )  
+          END DO 
+c
+c         -Loop on total number of atmosphere-to-coupler fields 
+c (see lib/clim/src/CLIM_Define for the definition of input parameters)
+          DO jf=1, jpflda2o1+jpflda2o2
+            CALL CLIM_Define (cl_writ(jf), clim_out , clim_double,
+     $          iparal, info )   
+          END DO 
+c
+          WRITE(nuout,*) 'inicma : clim_define ok '
+c
+c -Join a pvm group, wait for other programs and broadcast usefull 
+c  informations to Oasis and to the ocean (see lib/clim/src/CLIM_Start)
+          CALL CLIM_Start ( imxtag, info )
+
+
+          IF (info.ne.clim_ok) THEN
+              WRITE ( nuout, *) 'inicma : pb start clim '
+              WRITE ( nuout, *) ' error code is = ', info
+              CALL halte('stop in inicma')
+            ELSE
+              WRITE ( nuout, *)  'inicma : start clim ok '
+          ENDIF
+c
+c         -Get initial information from Oasis
+c          (see lib/clim/src/CLIM_Stepi)
+          CALL CLIM_Stepi (cloasis, istep, ifcpl, idt, info)
+          IF (info .NE. clim_ok) THEN
+              WRITE ( UNIT = nuout, FMT = *)
+     $            ' warning : problem in getting step info ',
+     $            'from oasis '
+              WRITE (UNIT = nuout, FMT = *)
+     $            ' =======   error code number = ', info
+            ELSE
+              WRITE (UNIT = nuout, FMT = *)
+     $            ' got step information from oasis '
+          ENDIF
+          WRITE ( nuout, *) ' number of tstep in oasis ', istep
+          WRITE ( nuout, *) ' exchange frequency in oasis ', ifcpl
+          WRITE ( nuout, *) ' length of tstep in oasis ', idt
+      ENDIF 
+
+      RETURN
+      END
+      SUBROUTINE fromcpl(kt, imjm, sst, zsc, msc)
+c ======================================================================
+c S. Valcke (02/99) adapted From L.Z.X Li:this subroutine reads the SST 
+c and Sea-Ice provided by the coupler with the CLIM (PVM exchange)
+c technique. 
+c======================================================================
+      IMPLICIT none
+      INTEGER imjm, kt
+      REAL sst(imjm)          ! sea-surface-temperature
+      REAL zsc(imjm)          ! zonal sea surface current
+      REAL msc(imjm)          ! meridional sea surface current
+c
+      INTEGER nuout             ! listing output unit
+      PARAMETER (nuout=6)
+c
+      INTEGER nuread, ios, iflag, icpliter
+      INTEGER info, jf
+c
+*CALL CLIMH
+c
+*CALL OASISH
+*CALL PARAMCOUH
+c
+*CALL INCCPLH
+c
+c
+      WRITE (nuout,*) ' '
+      WRITE (nuout,*) 'Fromcpl: Reading fields from CPL, kt=',kt
+      WRITE (nuout,*) ' '
+c     CALL flush (nuout)
+      CALL fish (nuout)
+
+
+      IF (cchan.eq.'CLIM') THEN 
+
+c
+c     -Get interpolated oceanic fields from Oasis
+c
+          DO jf=1,jpfldo2a
+            IF (jf.eq.1) CALL CLIM_Import (cl_read(jf) , kt, sst, info)
+            IF (jf.eq.2) CALL CLIM_Import (cl_read(jf) , kt, zsc, info)
+            IF (jf.eq.3) CALL CLIM_Import (cl_read(jf) , kt, msc, info)
+            IF ( info .NE. CLIM_Ok) THEN
+                WRITE(nuout,*)'Pb in reading ', cl_read(jf), jf
+                WRITE(nuout,*)'Couplage kt is = ',kt
+                WRITE(nuout,*)'CLIM error code is = ', info
+                CALL halte('STOP in fromcpl.F')
+            ENDIF
+          END DO 
+
+      ENDIF 
+c
+      RETURN
+      END
+
+
+      SUBROUTINE intocpl(kt, imjm, fsol, fnsol, waflx, runoff, taux,
+     $    tauy, archts, last) 
+c ======================================================================
+c S. Valcke (02/99) adapted From L.Z.X Li:this subroutine provides the 
+c atmospheric coupling fields to the coupler with the CLIM (PVM 
+c messages) technique. 
+c IF last time step, writes output fields to binary files.
+c ======================================================================
+      IMPLICIT NONE
+      INTEGER kt, imjm
+c
+      REAL fsol(imjm)
+      REAL fnsol(imjm)
+      REAL waflx(imjm)
+      REAL runoff(imjm)
+      REAL taux(imjm)
+      REAL tauy(imjm)
+      LOGICAL last,archts
+c
+      INTEGER nuout
+      PARAMETER (nuout = 6)
+c
+*CALL CLIMH
+*CALL PARAMCOUH
+*CALL INCCPLH
+c
+      CHARACTER*8 file_name(jpmaxfld)
+      INTEGER max_file
+      INTEGER file_unit_max, file_unit(jpmaxfld),
+     $    file_unit_field(jpmaxfld) 
+
+      INTEGER icstep, info, jn, jf, ierror
+      LOGICAL trouve
+c
+*CALL OASISH
+c
+      icstep=kt 
+c
+      WRITE(nuout,*) ' '
+      WRITE(nuout,*) 'Intocpl: sending fields to CPL, kt= ', kt
+      WRITE(nuout,*) ' '
+
+      IF (last.or.archts) THEN 
+c
+c   -WRITE fields to binary files for coupler restart at last time step
+c
+c         -initialisation and files opening
+c
+          max_file=1
+          file_unit_max=99
+c         -keeps first file name
+          file_name(max_file)=cl_f_writ(max_file)
+c         -keeps first file unit
+          file_unit(max_file)=file_unit_max
+c         -decrements file unit maximum
+          file_unit_max=file_unit_max-1
+c         -keeps file unit for field
+          file_unit_field(1)=file_unit(max_file)
+c
+c         -different files names counter
+c
+          DO jf= 2, jpflda2o1 + jpflda2o2
+            trouve=.false.
+            DO jn= 1, max_file
+              IF (.not.trouve) THEN
+                  IF (cl_f_writ(jf).EQ.file_name(jn)) THEN
+c                 -keep file unit for field
+                      file_unit_field(jf)=file_unit(jn)
+                      trouve=.true.
+                  END IF 
+              END IF 
+            END DO 
+            IF (.not.trouve) then
+c           -increment the number of different files
+                max_file=max_file+1
+c           -keep file name
+                file_name(max_file)=cl_f_writ(jf)
+c           -keep file unit for file
+                file_unit(max_file)=file_unit_max
+c           -keep file unit for field
+                file_unit_field(jf)=file_unit(max_file)
+c           -decrement unit maximum number from 99 to 98, ...
+                file_unit_max=file_unit_max-1
+            END IF 
+          END DO 
+c          
+          DO jn=1, max_file 
+           OPEN (file_unit(jn), FILE=file_name(jn), FORM='UNFORMATTED')
+          END DO
+c 
+c         WRITE fields to files          
+          DO jf=1, jpflda2o1 + jpflda2o2
+            IF (jf.eq.1)
+     $          CALL locwrite(cl_writ(jf),fnsol, imjm,
+     $          file_unit_field(jf), ierror, nuout) 
+            IF (jf.eq.2)
+     $          CALL locwrite(cl_writ(jf),fsol, imjm,
+     $          file_unit_field(jf), ierror, nuout) 
+            IF (jf.eq.3)
+     $          CALL locwrite(cl_writ(jf),waflx, imjm,
+     $          file_unit_field(jf), ierror, nuout) 
+            IF (jf.eq.4)
+     $          CALL locwrite(cl_writ(jf),runoff, imjm,
+     $          file_unit_field(jf), ierror, nuout) 
+            IF (jf.eq.5)
+     $          CALL locwrite(cl_writ(jf),taux, imjm,
+     $          file_unit_field(jf),ierror, nuout) 
+            IF (jf.eq.6)
+     $          CALL locwrite(cl_writ(jf),tauy, imjm,
+     $          file_unit_field(jf),ierror, nuout) 
+            IF (jf.eq.7)
+     $          CALL locwrite(cl_writ(jf),taux, imjm,
+     $          file_unit_field(jf), ierror, nuout) 
+            IF (jf.eq.8)
+     $          CALL locwrite(cl_writ(jf),tauy, imjm,
+     $          file_unit_field(jf), ierror, nuout) 
+          END DO 
+C
+C         -simulate a FLUSH
+C
+          DO jn=1, max_file 
+            CLOSE (file_unit(jn))
+          END DO 
+
+          end if
+C
+C
+          if (last) then
+
+          IF(cchan.eq.'CLIM') THEN 
+C
+C         -inform PVM daemon that message exchange is finished
+C
+              write(6,*)'calling CLIM_Quit',CLIM_ContPvm, info
+              CALL CLIM_Quit (CLIM_ContPvm, info)
+              IF (info .NE. CLIM_Ok) THEN
+                  WRITE (6, *) 
+     $                'An error occured while leaving CLIM. Error = ',
+     $                info
+              ENDIF
+          END IF 
+          RETURN    
+      else
+      write(6,*) " never got to clim quit "
+      END IF 
+C
+      IF(cchan.eq.'CLIM') THEN 
+C
+C     -Give atmospheric fields to Oasis
+C 
+          DO jn=1, jpflda2o1 + jpflda2o2
+C            
+            IF (jn.eq.1) CALL CLIM_Export(cl_writ(jn), kt, fnsol, info)
+            IF (jn.eq.2) CALL CLIM_Export(cl_writ(jn), kt, fsol, info)
+            IF (jn.eq.3) CALL CLIM_Export(cl_writ(jn), kt, waflx, info)
+            IF (jn.eq.4) CALL CLIM_Export(cl_writ(jn), kt, runoff, info)
+            IF (jn.eq.5) CALL CLIM_Export(cl_writ(jn), kt, taux, info)
+            IF (jn.eq.6) CALL CLIM_Export(cl_writ(jn), kt, tauy, info)
+            IF (jn.eq.7) CALL CLIM_Export(cl_writ(jn), kt, taux, info)
+            IF (jn.eq.8) CALL CLIM_Export(cl_writ(jn), kt, tauy, info)
+            
+            IF (info .NE. CLIM_Ok) THEN
+                WRITE (nuout,*) 'STEP : Pb giving ',cl_writ(jn), ':',jn
+                WRITE (nuout,*) ' at timestep = ', icstep,'kt = ',kt
+                WRITE (nuout,*) 'Clim error code is = ',info
+                CALL halte('STOP in intocpl ')
+            ENDIF
+          END DO 
+      ENDIF 
+C
+      RETURN
+      END
+      SUBROUTINE locread ( cdfldn, pfield, kdimax, knulre, kflgre
+     $                   , kout)
+C****
+C               *****************************
+C               * OASIS ROUTINE  -  LEVEL 0 *
+C               * -------------     ------- *
+C               *****************************
+C
+C**** *locread*  - Read binary field on unit knulre
+C
+C     Purpose:
+C     -------
+C     Find string cdfldn on unit knulre and read array pfield
+C
+C**   Interface:
+C     ---------
+C       *CALL*  *locread (cdfldn, pfield, kdimax, knulre, kflgre, kout)*
+C
+C     Input:
+C     -----
+C                cdfldn : character string locator
+C                kdimax : dimension of field to be read 
+C                knulre : logical unit to be read 
+C                kout   : logical unit to write messages
+C
+C     Output:
+C     ------
+C                pfield : field array (real 1D)
+C                kflgre : error status flag
+C
+C     Reference:
+C     ---------
+C     See OASIS manual (1995) 
+C
+C     History:
+C     -------
+C       Version   Programmer     Date      Description
+C       -------   ----------     ----      -----------  
+C       2.0       L. Terray      95/09/01  created
+C
+C %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+C
+      IMPLICIT CHARACTER(c)
+      IMPLICIT LOGICAL(l)
+C
+C*--------------------------- Argument declarations -------------------
+C
+      REAL pfield(kdimax)
+      CHARACTER*8 cdfldn
+C
+C*--------------------------- Local declarations ----------------------
+C
+      CHARACTER*8 clecfl
+C
+C*--------------------------- Poema verses ----------------------------
+C
+C %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+C
+C*    1. Initialization
+C        --------------
+C
+      WRITE (UNIT = kout,FMT = 1001) knulre
+C
+C* Formats
+C
+ 1001 FORMAT('Locread : Read binary file connected to unit = ',I3)
+C
+C     2. Find field in file
+C        ------------------
+C
+      REWIND knulre
+ 200  CONTINUE
+C* Find string
+      READ (UNIT = knulre, ERR = 200, END = 210) clecfl
+      IF (clecfl .NE. cdfldn) GO TO  200
+C* Read associated field
+      READ (UNIT = knulre, ERR = 210, END = 210) pfield
+C* Reading done and ok
+      kflgre = 0
+      GO TO 220
+C* Problem in reading
+ 210  kflgre = 1
+ 220  CONTINUE
+C
+C
+C*    3. End of routine
+C        --------------
+C
+      WRITE (UNIT = kout,FMT = *) 'Locread : done'
+      CALL FISH (kout)
+      RETURN
+      END
+      SUBROUTINE locwrite (cdfldn, pfield, kdimax, knulre, kflgre, kout)
+      IMPLICIT none
+C****
+C               *****************************
+C               * OASIS ROUTINE  -  LEVEL 0 *
+C               * -------------     ------- *
+C               *****************************
+C
+C**** *locwrite*  - Write binary field on unit knulre
+C
+C     Purpose:
+C     -------
+C     Write string cdfldn and array pfield on unit knulre
+C
+C**   Interface:
+C     ---------
+C      *CALL*  *locwrite (cdfldn, pfield, kdimax, knulre, kflgre, kout)*
+C
+C     Input:
+C     -----
+C                cdfldn : character string locator
+C                kdimax : dimension of field to be written 
+C                knulre : logical unit to be written
+C                pfield : field array (real 1D) 
+C                kout   : logical unit to write messages
+C
+C     Output:
+C     ------
+C                kflgre : error status flag
+C
+C     Workspace:
+C     ---------
+C     None
+C
+C     Externals:
+C     ---------
+C     None
+C
+C     Reference:
+C     ---------
+C     See OASIS manual (1995) 
+C
+C     History:
+C     -------
+C       Version   Programmer     Date      Description
+C       -------   ----------     ----      -----------  
+C       2.0       L. Terray      95/09/01  created
+C
+C %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+C
+C
+C*--------------------------- Argument declarations -------------------
+C
+      INTEGER kdimax, knulre, kflgre, kout
+      REAL pfield(kdimax)
+      CHARACTER*8 cdfldn
+C
+C*--------------------------- Poema verses ----------------------------
+C
+C %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+C
+C*    1. Initialization
+C        --------------
+C
+      WRITE (UNIT = kout,FMT = 1001) knulre
+C
+C* Formats
+C
+ 1001 FORMAT(5X,' Write binary file connected to unit = ',I3)
+C
+C     2. Find field in file
+C        ------------------
+C
+C* Write string
+      WRITE (UNIT = knulre, ERR = 210) cdfldn
+C* Write associated field
+      WRITE (UNIT = knulre, ERR = 210) pfield
+C* Writing done and ok
+      kflgre = 0
+      GO TO 220
+C* Problem in Writing
+ 210  kflgre = 1
+ 220  CONTINUE
+C
+C
+C*    3. End of routine
+C        --------------
+C
+      WRITE (UNIT = kout,FMT = *) 'Locwrite : done'
+      CALL FISH (kout)
+      RETURN
+      END
+
+
+
+
+      SUBROUTINE halte (cdtext)
+C****
+C               *****************************
+C               * OASIS ROUTINE  -  LEVEL C *
+C               * -------------     ------- *
+C               *****************************
+C
+C**** *halte*  - Abort the program
+C
+C     Purpose:
+C     -------
+C     Print an error message to standard output and abort the coupler
+C
+C**   Interface:
+C     ---------
+C       *CALL*  *halte (cdtext)*
+C
+C     Input:
+C     -----
+C                cdtext   : character string to be printed
+C
+C     Output:
+C     ------
+C     None
+C
+C     Workspace:
+C     ---------
+C     None
+C
+C     Externals:
+C     ---------
+C     None
+C
+C     Reference:
+C     ---------
+C     See OASIS 2.2 manual (1997) 
+C
+C     History:
+C     -------
+C       Version   Programmer     Date      Description
+C       -------   ----------     ----      -----------  
+C       2.2       S. Valcke      97/11/18  created
+C
+C %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+C
+C*----------------------- Argument declarations ----------------------
+C
+      CHARACTER*(*) cdtext
+C
+C*--------------------------- Local declarations ----------------------
+C
+      CHARACTER cpbase
+      CHARACTER*10 cprpt, cpdots
+      CHARACTER*69 cline
+      PARAMETER ( cpbase = '-' )
+      PARAMETER ( cprpt = '* ===>>> :' )
+      PARAMETER ( cpdots = '  ------  ' )
+C
+C*--------------------------- Poema verses ----------------------------
+C
+C %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+C
+C*    1. Print text 
+C        ----------
+C
+          cline = ' '
+          ilen = len(cdtext)
+          DO 110 jl = 1, ilen
+            cline(jl:jl) = cpbase
+ 110      CONTINUE
+          nulou=6
+          WRITE(UNIT = nulou,FMT='(/,A,X,A)') cpdots, cline
+          WRITE(UNIT = nulou,FMT='(/,A,X,A,/)') cprpt, cdtext
+          WRITE(UNIT = nulou,FMT='(A,X,A,/)')cpdots, cline
+C
+C
+C*    2. FLUSH the coupler output
+C        ------------------------
+C
+      CALL FISH (nulou)
+C
+C
+C*    3. Abort the coupler
+C        -----------------
+C
+      CALL abort
+      RETURN
+      END

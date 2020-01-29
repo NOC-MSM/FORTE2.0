@@ -1,0 +1,214 @@
+*IDENT OAS_COMTILE
+*I BLSURF.83
+      real :: TGBSOC,QGBSOC,QGBSOC2,UGBSOC,VGBSOC
+      real :: UNLGJNL,VNLGJNL,TNLGJNL,QNLGJNL
+      real :: SHBLJ,SLBLJ,TXBLJ,TYBLJ,BLVBJ
+      real :: stempbs0,stempbs3,tscurw,escon,snowexcess
+      real :: restorice,tspd
+      real :: UG3CUR, VG3CUR,UGBSOCUR,VGBSOCUR
+      integer :: ifsstj
+*I DGRMLT.43
+      real :: tspd,rkounth,tzc,tm2,evap,pp,evap2
+*/
+*/ Adjustment of tendencies using surface current
+*/
+
+*I BLSURF.252
+C Surface winds used by BL routine UG3CUR,VG3CUR are
+C atmospheric winds minus nondimensionalised surface current
+C Updated here since UG3 and VG3 are updated during ITER loop
+
+               UG3CUR=UG3(I,IHEM,JH,NL)-zscur_2d(I,IHEM,JH)/SQRC/CV
+               VG3CUR=VG3(I,IHEM,JH,NL)-mscur_2d(I,IHEM,JH)/SQRC/CV
+*D BLSURF.275
+               FUG3(I,IHEM,JH,NL)=-CVM*UG3CUR
+*D BLSURF.277
+               FVG3(I,IHEM,JH,NL)=-CVM*VG3CUR
+*D BLSURF.280
+               TXBL(I,IHEM)=CVM*UG3CUR
+*D BLSURF.282
+               TYBL(I,IHEM)=CVM*VG3CUR
+*I BLSURF.179
+        TGBSOC=TG3(I,IHEM,JH,NL)
+        QGBSOC=TRAG3(I,IHEM,JH,NL,1)
+        QGBSOC2=TRAG3(I,IHEM,JH,NL,1)
+        UGBSOC=UG3(I,IHEM,JH,NL)
+        VGBSOC=VG3(I,IHEM,JH,NL)
+c not used
+c      stempbs0=0.
+c      do l=1,nl
+c      stempbs0=stempbs0+TRAG3(I,IHEM,JH,L,1)*clr(l)
+c      end do
+*B BLSURF.438
+C Calculate moisture converegnce in atmosphere to close water budget:
+C needs to account for pre and post coastal tiling
+C Balance before coastal tiling:for ocean, land, and land part of coast
+
+      stempbs3=0.
+      do l=1,nl
+      stempbs3=stempbs3+TRANLG3(I,IHEM,JH,L,1)*clr(l)
+      end do
+      wathbl(I,IHEM,JH)=stempbs3*PLG3(I,IHEM,JH)
+
+C Balance after coastal tiling weighted by ocean fraction
+C used for average gridpoint water balance
+      stempbs3=0.
+      do l=1,nl-1
+      stempbs3=stempbs3+TRANLG3(I,IHEM,JH,L,1)*clr(l)
+      end do
+      stempbs3=stempbs3+TRANLG3(I,IHEM,JH,NL,1)*
+     :   (1-ofrac(I,IHEM,JH))*clr(nl)
+     :  +QNLGS*clr(nl)*ofrac(I,IHEM,JH)
+      watlbl(I,IHEM,JH)=stempbs3*PLG3(I,IHEM,JH)
+
+C Balance after coastal tiling over fractional ocean points
+C is used for water balance over ocean parts of coastal points
+      stempbs3=0.
+      do l=1,nl-1
+      stempbs3=stempbs3+TRANLG3(I,IHEM,JH,L,1)*clr(l)
+      end do
+      stempbs3=stempbs3+QNLGS*clr(nl)
+      watsbl(I,IHEM,JH)=stempbs3*PLG3(I,IHEM,JH)
+
+      if(GSG(I,IHEM,JH).ne.0..and.ofrac(I,IHEM,JH).gt.0.
+     $  .and.ofrac(I,IHEM,JH).lt.1.)then
+C        SHBL(I,IHEM,JH)=SHBLS
+C        SLBL(I,IHEM,JH)=SLBLS
+C Diagnosed gridpoint SHBL and SLBL weighted by OFRAC
+        SHBL(I,IHEM,JH)=(1.-ofrac(I,IHEM,JH))*
+     $ SHBL(I,IHEM,JH)+ofrac(I,IHEM,JH)*SHBLS
+        SLBL(I,IHEM,JH)=(1.-ofrac(I,IHEM,JH))*
+     $ SLBL(I,IHEM,JH)+ofrac(I,IHEM,JH)*SLBLS
+C SHBLS and SLBLS equivalent for ocean part of gridpoint
+        SHBLC(I,IHEM,JH)=SHBLS
+        SLBLC(I,IHEM,JH)=SLBLS
+        TXBL(I,IHEM)=TXBLS
+        TYBL(I,IHEM)=TYBLS
+        TRANLG3(I,IHEM,JH,NL,1)=(1.-ofrac(I,IHEM,JH))*
+     $TRANLG3(I,IHEM,JH,NL,1)+ofrac(I,IHEM,JH)*QNLGS
+        TRAG3(I,IHEM,JH,NL,1)=(1.-ofrac(I,IHEM,JH))*
+     $TRAG3(I,IHEM,JH,NL,1)+ofrac(I,IHEM,JH)*QGBSOC
+        TNLG3(I,IHEM,JH,NL)=(1.-ofrac(I,IHEM,JH))*
+     $TNLG3(I,IHEM,JH,NL)+ofrac(I,IHEM,JH)*TNLGS
+        TG3(I,IHEM,JH,NL)=(1.-ofrac(I,IHEM,JH))*
+     $TG3(I,IHEM,JH,NL)+ofrac(I,IHEM,JH)*TGBSOC
+        FUG3(I,IHEM,JH,NL)=(1.-ofrac(I,IHEM,JH))*
+     $FUG3(I,IHEM,JH,NL)+ofrac(I,IHEM,JH)*UNLGS
+        UG3(I,IHEM,JH,NL)=(1.-ofrac(I,IHEM,JH))*
+     $UG3(I,IHEM,JH,NL)+ofrac(I,IHEM,JH)*UGBSOC
+        FVG3(I,IHEM,JH,NL)=(1.-ofrac(I,IHEM,JH))*
+     $FVG3(I,IHEM,JH,NL)+ofrac(I,IHEM,JH)*VNLGS
+        VG3(I,IHEM,JH,NL)=(1.-ofrac(I,IHEM,JH))*
+     $VG3(I,IHEM,JH,NL)+ofrac(I,IHEM,JH)*VGBSOC
+      endif
+
+*B BLSURF.23
+*CALL PARAMH
+*CALL AOfields
+*CALL OAfields
+       REAL deltasnow
+
+*B DGRMLT.31
+*CALL PARAMH
+*CALL OAfields
+*CALL AOfields
+
+*B MLTRI.55
+*/ Add the line above the local variable defintions
+*CALL OROG_G
+*CALL PARAMH
+*CALL OAfields
+*CALL AOfields
+
+*I MLTRI.491
+         call flush(11)
+         call flush(19)
+
+*D OROG_G.6,7
+      COMMON/GSG/GSG,TOPVAR,RLEVBZMO,FXZMO,ofrac,runoff,iareanum
+! Topog variance, GW diags for Orog, Non orog waves
+      REAL :: TOPVAR(MGx,NHEM,JGy)
+      REAL :: RLEVBZMO(JGy,NHEM,NL)
+      REAL :: FXZMO(JGy,NHEM,NL)
+         REAL :: GSG(MGx,NHEM,JGy)
+         REAL :: ofrac(MGx,NHEM,JGy)
+         INTEGER :: runoff(50,2,33)
+         INTEGER :: iareanum
+*I SFCT.49
+*CALL PARAMH
+*COMDECK PARAMH
+C OASIS size parameters
+      INTEGER, PARAMETER :: IMB = 128
+      INTEGER, PARAMETER :: JM = 64
+      INTEGER, PARAMETER :: IMJM = IMB*JM
+*COMDECK OAfields
+      common/oasiso2a/zsst(imjm),zscur(imjm),mscur(imjm)
+     $   ,zsst_2d(MGx,NHEM,JGy)
+     $   ,zscur_2d(MGx,NHEM,JGy),mscur_2d(MGx,NHEM,JGy)
+      real zsst,zsst_2d,zscur,zscur_2d,mscur,mscur_2d
+*COMDECK AOfields
+      common/oasisa2o/swlw(imjm),heatlat(imjm),water(imjm)
+     $   ,sensible(imjm),taux(imjm),tauy(imjm),exwater(imjm)
+     $   ,exwat(MGx,NHEM,JGy),sensible2(imjm),sensible3(imjm)
+     $   ,oceaniceflux(MGx,NHEM),exiwat(MGx,NHEM,JGy),exiwater(imjm)
+     $   ,exiwatn(MGx,NHEM,JGy),exiwatern(imjm)
+     $   ,tstaroo(MGx,NHEM,JGy),tstarf(MGx,NHEM,JGy)
+     $   ,qstarf(MGx,NHEM,JGy),sqstarf(MGx,NHEM,JGy)
+     $   ,swlw2d(MGx,NHEM,JGy),heatlat2d(MGx,NHEM,JGy)
+     $   ,water2d(MGx,NHEM,JGy)
+     $   ,sensible2d(MGx,NHEM,JGy),taux2d(MGx,NHEM,JGy)
+     $   ,tauy2d(MGx,NHEM,JGy)
+     $   ,SHBLC(MGx,NHEM,JGy),SLBLC(MGx,NHEM,JGy)
+     $   ,exwater2d(MGx,NHEM,JGy),sensible2_2d(MGx,NHEM,JGy)
+     $   ,sensible3_2d(MGx,NHEM,JGy)
+     $   ,exiwater2d(MGx,NHEM,JGy),exiwatern2d(MGx,NHEM,JGy)
+      real swlw,heatlat,water,sensible,taux,tauy,shblc,slblc,exwater
+     $,exwat,sensible2,sensible3,oceaniceflux,exiwat,exiwater
+     $,exiwatn,exiwatern,tstaroo,tstarf,qstarf,sqstarf
+     $,swlw2d,heatlat2d,water2d,sensible2d,taux2d,tauy2d
+     $,exwater2d,sensible2_2d,sensible3_2d,exiwater2d,exiwatern2d
+
+      common/wat/water2(imjm), water2_2d(MGx,NHEM,JGy)
+C Arrays wathbl, watlsl, watsbl are used for balancing water in IGCM4
+C ashbl, aslbl, assbl were used in IGCM3 FORTE but these are already
+C in use in elsewhere in IGCM4 for surface flux diagnostics
+     $   ,wathbl(MGx,NHEM,JGy),watlbl(MGx,NHEM,JGy),watsbl(MGx,NHEM,JGy)
+     $   ,sicecov(MGx,NHEM,JGy)
+      real water2,water2_2d,wathbl,watlbl,watsbl,sicecov
+
+*COMDECK clear-array
+      IF(MYPE.EQ.0)THEN
+C     write(6,*)'clearing exchange arrays'
+      DO i = 1, imjm
+        swlw(i) = 0.
+        heatlat(i) = 0.
+        water(i) = 0.
+        water2(i) = 0.
+        sensible(i) = 0.
+        taux(i) = 0.
+        tauy(i) = 0.
+        exwater(i) = 0.
+        exiwater(i) = 0.
+        exiwatern(i) = 0.
+      ENDDO
+      ENDIF   ! End MYPE if
+
+      do j=1,JGyy(iRow)
+      do ihem=1,nhem
+      do i=1,MGxx(iCol)
+        swlw2d(i,ihem,j) = 0.
+        heatlat2d(i,ihem,j) = 0.
+        water2d(i,ihem,j) = 0.
+        water2_2d(i,ihem,j) = 0.
+        sensible2d(i,ihem,j) = 0.
+        taux2d(i,ihem,j) = 0.
+        tauy2d(i,ihem,j) = 0.
+        exwater2d(i,ihem,j) = 0.
+        exiwater2d(i,ihem,j) = 0.
+        exiwatern2d(i,ihem,j) = 0.
+      end do
+      end do
+      end do
+
+C
+

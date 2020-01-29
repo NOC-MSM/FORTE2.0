@@ -1,0 +1,17 @@
+ ! NOAA/PMEL TMAP
+ ! FERRET v6.64  
+ ! Linux(gfortran) 2.6.9-89.0.20.ELsmp - 09/16/10
+ ! 16-Aug-13 11:22     
+
+def ax/x=1:128:1 xax2
+def ax/y=1:64:1 yax2
+def grid/x=xax2/y=yax2 gax2
+file/var=sst/g=gax2 ofrac_newcalc.igcm3
+shade sst
+file/var=sst/g=gax2 "OUTPUT/ofrac.igcm3"
+set win 2
+shade sst
+file/var=sst/g=gax2 "ofrac.igcm3"
+set win 3
+shade sst
+q

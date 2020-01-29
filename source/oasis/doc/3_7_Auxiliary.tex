@@ -1,0 +1,255 @@
+\begin{subsection}{Auxiliary data files}
+\label{subsec_data}
+OASIS needs some auxiliary data files describing the grids of
+the models being coupled as well as a number of other auxiliary data
+files, for instance interpolation parameters or climatological files
+or restart input fields.
+
+\begin{subsubsection}{Grid auxiliary data files}
+\label{subsub.gridauxdata}
+
+The grid auxiliary data files are {\em grids}, {\em masks}, {\em
+areas},  and {\em maskr}. These files are always read by Oasis in its 
+initialization phase. All these files have the same structure. 
+A character variable is first written
+to the file to locate a data set corresponding to a given model.
+The data set is then written sequentially after its locator. 
+Let us call ``brick'' the locator and its associated data set.
+The order in which the bricks are written doesn't matter. 
+All the bricks are written in the file in the following way:
+
+\begin{verbatim}
+        ...
+        WRITE(LU) clocator
+        WRITE(LU) auxildata
+        ...
+\end{verbatim}
+where
+\begin{itemize}
+\item {\tt LU} is the associated unit
+\item {\tt clocator} is a CHARACTER*8 variable used to locate the data
+field. The locator prefix, made of 4 characters, is read in the input
+file {\em namcouple} for each field; in the example given in 
+\ref{subsubsec_general} it is either ``topa'' for the source grid,
+either ``at42'' for the target grid. The prefix can be chosen by the
+user. The locator suffix gives the auxiliary data type (see below for
+each file).
+\item {\tt auxildata} are the grid longitude, latitude, mask or 
+surface mesh data (see below).
+\end{itemize}
+
+\begin{enumerate}
+\item {\em grids}: this file contains longitudes and latitudes for all
+model grids, except reduced gaussian grids. The locator {\tt clocator}
+is made by the prefix chosen by the user and defined in the 
+{\em namcouple} (see above) and by the suffix defined in 
+{\tt src/blkdata.f} by the
+parameters {\tt icglonsuf} (``.lon''), {\tt cglatsuf} (``.lat'') for
+respectively the longitudes and latitudes data. These data 
+are REAL variables, must follow
+OASIS convention (longitudes from West to East -not necessarily
+starting at Greenwich- and latitudes from 
+South to North) and are dimensioned (imod, jmod) where imod
+and jmod are the dimensions of the grid in longitude and latitude.
+
+\item {\em masks}: this file contains sea-land masks for all
+model grids, except reduced gaussian grids. The locator {\tt clocator}
+is made by the prefix (see above) and by the suffix defined in 
+{\tt src/blkdata.f} by the parameter {\tt cmsksuf} (``.msk''). 
+In this case, the mask data are INTEGER variables (0 for ocean, 1 for
+land), must follow
+OASIS convention (longitudes from West to East -not necessarily
+starting at Greenwich- and latitudes from 
+South to North) and are dimensioned (imod, jmod) where imod
+and jmod are the dimensions of the grid in longitude and latitude.
+
+\item {\em areas}: this file contains mesh surfaces for all
+model grids, except reduced gaussian grids. The locator {\tt clocator}
+is made by the prefix (see above) and by the suffix defined in 
+{\tt src/blkdata.f} by the parameter {\tt csursuf} (``.srf''). 
+The surface data are REAL variables, must follow
+OASIS convention (longitudes from West to East -not necessarily
+starting at Greenwich- and latitudes from 
+South to North) and are dimensioned (imod, jmod) where imod
+and jmod are the dimensions of the grid in longitude and
+latitude. This file is always read by Oasis in its initialization
+phase even if the information on the grid mesh surface is used only in
+CHECKIN, CHECKOUT, CONSERV analyses.
+
+\item {\em maskr}: this file contains sea-land masks for reduced
+gaussian grids.  This file is always read by Oasis in its initialization
+phase even if the information on the reduced grid sea-land masks is
+used only in REDGLO and MASK on a reduced gaussian grid. The locator 
+{\tt clocator} is ``MSKRDxxx'' where ``xxx'' is half the number of 
+latitude circles of the reduced grid (032 for a T42 for example). 
+The data are INTEGER variables (0 for ocean, 1 for
+land), must follow the reduced grid model 
+convention and are dimensioned (modtot) where modtot is the total
+dimension of the reduced gaussian grid.  
+
+\end{enumerate}
+
+\end{subsubsection}
+
+\begin{subsubsection}{Analysis auxiliary data files}
+\label{subsub.analaux}
+Many analyses need auxiliary data files, for example the
+grid-mapping files used for an interpolation. The description 
+of the analysis auxiliary data files is given in Table
+\ref{tab.fileana}.
+
+\begin{table}[hbtp]
+\begin{center}
+\begin{tabular}{|l|l|}
+\hline
+File name & Description \\
+\hline
+\hline
+{\em  nweights }& weights, addresses and iteration number for EXTRAP/NINENN interpolation  \\
+{\em  mweights }& weights and addresses for SURFMESH interpolation  \\
+{\em  gweights }& weights and addresses for GAUSSIAN interpolation  \\
+any name        & weights and addresses for MOZAIC interpolation \\
+any name        & weights and addresses for WEIGHT extrapolation \\
+any name        & weights and addresses for SUBGRID interpolation \\
+any name        & global climatology data set for FILLING analysis \\
+\hline
+\end{tabular}
+\end{center}
+\caption{Analysis auxiliary data files}
+\label{tab.fileana}
+\end{table}
+
+All the weight-and-address files described in Table \ref{tab.fileana}
+have the same structure.
+Note that the files {\em  nweights}, {\em  mweights} and {\em
+gweights} can be created by
+OASIS itself if {\tt \$NIO} = 1 (see EXTRAP, SURFMESH, GAUSSIAN 
+and GLORED analyses in 
+\ref{subsubsec_input}). The name of the (sub)grid-mapping files giving
+the weights and addresses files for
+the MOZAIC, WEIGHT and SUBGRID analyses can be chosen by the user but
+have to be given to OASIS through the input file {\em namcouple} (see
+the relevant analyses in \ref{subsubsec_input}). The structure of
+these files (except {\em  nweights }) is as follows:
+
+\begin{verbatim}
+      ...
+      CHARACTER*8 cladress,clweight
+      INTEGER iadress(jpnb,jpo)
+      REAL weight(jpnb,jpo)
+      OPEN(unit=90, file='at31topa', form='unformatted')
+      WRITE(clweight,'(''WEIGHTS'',I1)') knumb
+      WRITE(cladress,'(''ADRESSE'',I1)') knumb
+      WRITE (90) cladress
+      WRITE (90) iadress
+      WRITE (90) clweight
+      WRITE (90) weight
+\end{verbatim}
+
+where 
+\begin{itemize}
+\item {\tt jpnb} is the maximum number of neighbors used in the analysis
+({\tt \$NVOISIN} in \ref{subsubsec_input})
+\item {\tt jpo} is the total dimension of the target grid
+\item {\tt at31topa} is the name of the grid-mapping data file ({\tt \$CFILE}
+in \ref{subsubsec_input})
+\item {\tt knumb} is the identificator of the data set ({\tt \$NID} in
+\ref{subsubsec_input}) 
+\item {\tt cladress} is the locator of the address dataset
+\item {\tt clweight} is the locator of the weight dataset
+\item {\tt iadress (i,j)} is the address on the source grid of the $i^e$
+neighbor used for the mapping of the $j^e$ target grid point. The
+address is the index of a grid point within the total number of grid
+points.
+\item {\tt weight(i,j)} is the weight affected to the $i^e$
+neighbor used for the analysis of the $j^e$ target grid point
+\end{itemize}
+
+For file {\em  nweights }, there is an additional brick composed of a
+CHARACTER*8 clincreme variable that can be formed by the following 
+instruction:
+
+      WRITE(clincreme,'(''INCREME'',I1)') knumb
+
+and of an INTEGER iincreme(jpnb, jpo) which is the iteration number
+within EXTRAP/NINENN analysis at
+which the extrapolation of grid point (i,j) is effectively performed.
+
+For the FILLING analysis, the global data set used can be
+either interannual monthly, climatological monthly or yearly (see
+\ref{subsubsec_interp}). The name of the global data file 
+can be chosen by the user but
+have to be given to OASIS through the input file {\em namcouple} (see
+FILLING in \ref{subsubsec_input}).In case of monthly data, the file 
+must be written in the following way:
+\begin{verbatim}
+      ...
+      REAL field_january_year_01(jpi, jpj)
+      ...
+      WRITE(NLU_fil) field_january_year_01
+      WRITE(NLU_fil) field_february_year_01
+      WRITE(NLU_fil) field_march_year_01
+      etc...
+      WRITE(NLU_fil) field_december_year_01
+C
+C if climatology, one stops here
+C
+      WRITE(NLU_fil) field_january_year_02
+      etc...
+\end{verbatim}
+
+where
+\begin{itemize}
+\item  {\tt field\_...} is the global dataset
+\item {\tt jpi} and {\tt jpj} are the dimensions of the grid on which FILLING
+is performed
+\item {\tt NLU\_fil} is the logical unit associated to the global data file and is
+defined in the input file {\em namcouple}
+\end{itemize}
+Note that the first month needs not to be a january.
+This is the only file within OASIS in which the fields are not read
+using a locator.
+
+\end{subsubsection}
+
+\begin{subsubsection}{Restart input binary files}
+\label{subsub.restart}
+ 
+For each input field, an input binary file on which the field is 
+read by OASIS initially has to be present. At the end of
+the simulation, each output field is written in an output file which
+will serve of restart input file for the other model for the next part
+of the simulation.
+In the example given in \ref{subsubsec_general}, this file was
+``sstocefl'' and ``sstatmfl''. There can be an
+arbitrary number of fields written in one input or output file. 
+Note that in the PIPE communication technique, these input and
+output files are also used at each coupling timestep to exchange the fields.
+In these file, each field is written in the following way:
+
+\begin{verbatim}
+       ...
+       character*8 clocator
+       REAL infield(ntot)
+       ...
+       write(NLU_fil) clocator
+       write(NLU_fil) infield
+       ...
+\end{verbatim}
+where
+\begin{itemize}
+\item {\tt clocator} is the symbolic name of the field 
+\item {\tt infield} is the field itself on the source grid for an input field
+or on the target grid for an output field
+\item {\tt ntot} is the total number of grid points. Note that even for
+restart fields given on a reduced gaussian grid, ntot is the dimension of the
+global gaussian grid and the reduced field is completed by trailing zeros.
+\item {\tt NLU\_fil} is the unit connected to the input or output file
+defined in the {\em namcouple} (35 for ``sstocefl'' and 96 for 
+``sstatmfl'' in the example given in \ref{subsubsec_general})  
+\end{itemize}
+\end{subsubsection}
+
+\end{subsection} 
+
+\end{section}

@@ -1,0 +1,7 @@
+#
+cp INPUT/vegetation fort.31
+
+writesvegel3
+
+mv fort.32  OUTPUT/vegetation.coast
+rm fort.31

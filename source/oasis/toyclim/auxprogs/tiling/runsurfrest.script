@@ -1,0 +1,8 @@
+#
+cp INPUT/restart.surface fort.69
+
+surfrest
+
+mv fort.70  OUTPUT/restart.land
+mv fort.71  OUTPUT/restart.sea
+rm fort.69

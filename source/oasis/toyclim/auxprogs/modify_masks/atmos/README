@@ -1,0 +1,10 @@
+Use files in this directory to create a new atmos land mask
+
+Procedure is described in ../ocean/README - with slight differences, i.e,
+programs are readmap and writemap.f and the output goes to fort.3 (human) and
+fort.31 (ferret) files and the input file is t42.59.??
+
+Also, programs called addorog.f, readorog.f and writeorog.f allow 
+the orography from the original file to be written into the new map.
+The new orography can then be manually corrected to include/remove 
+new land/sea points.

@@ -1,0 +1,3 @@
+      parameter(nxo=180,nyo=45)
+      parameter(yoffs=-88.,xoffs=1.)
+      parameter(dyo=4.,dxo=2.)

@@ -1,0 +1,24 @@
+Disclaimer
+==========
+
+The developers of the OASIS software are researchers attempting to build
+a modular and user-friendly coupler accessible to the climate modelling
+community. Although we use the tool ourselves and have made every effort
+to ensure its accuracy, we can not make any guarantees. We provide the
+software to you for free. In return, you--the user--assume full 
+responsability for use of the software. The OASIS software comes without
+any warranties (implied or expressed) and is not guaranteed to work for you
+or on your computer. Specifically, CERFACS and the various individuals
+involved in development and maintenance of the OASIS software are not 
+responsible for any damage that may result from correct or incorrect use
+of this software.
+
+Reference to the software:
+=========================
+
+If you feel that your research has benefitted from the use of the OASIS
+software, we will greatly appreciate your reference to the following 
+report:
+
+Terray L., Valcke S., and Piacentini A., 1999, The OASIS Coupler User Guide
+Version 2.3, Tech. Rep. TR/CMGC/99-37, CERFACS.

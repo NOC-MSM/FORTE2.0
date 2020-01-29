@@ -1,0 +1,178 @@
+*/ -------------------------------------------------
+*/ IGCM3.2 RADIATION AND CLOUDS UPDATE:
+*/ 1.  SOLAR RADIATION AND OZONE
+*/ 2.  CONVECTIVE CLOUD FORMATION
+*/ 3.  MARINE STRATOCUMULUS FORMATION
+*/ 4.  ALL CLOUDS IN RADIATION
+*/ 5.  SURFACE ENERGY BALANCE CORRECTION
+*/ --------------------------------------------------- 
+*/
+*IDENT RAD_CL_SEBAL
+*/ ---------------------------------------
+*/ 1.  SOLAR RADIATION AND OZONE
+*/ ---------------------------------------
+*D INICON.56
+C Solar constant
+C      SOLC=1376.
+      SOLC=1365.
+*D MORC.190
+C O3 climatology interpolation fix: ps variable
+                     ps=PLG3(I,IHEM,J)*P0
+*D MORC.252
+*I MORC.255
+C O3 climatology interpolation fix: ps variable
+                     ps=PLG3(I,IHEM,J)*P0
+*/ ---------------------------------------
+*/ 2.  CONVECTIVE CLOUD FORMATION BIT
+*/ ---------------------------------------
+*I Z_CONVEC.74
+*/ Insert after line
+*/         DO I=1,MGxx(iCol)
+C Allow some shallow convection rainout over ocean
+         IF(SVEGE(I,IHEM,JH).eq.1)THEN
+           CURHM=80.0/100.0
+           CUBMT=6.0*3600.0*WW
+         ELSE
+           CURHM=200.0/100.0
+           CUBMT=6.0*3600.0*WW
+         ENDIF
+*/ ---------------------------------------
+*/ 3.  MARINE STRATOCUMULUS FORMATION BIT
+*/ ---------------------------------------
+*I LSCRN.45
+*/ Insert after the line:
+*/      REAL :: SDOTP
+      REAL :: DTHDP1, DTHDP2
+*I LSCRN.58
+C Calculate d theta/dP at low levels
+
+            DTHDP1 = ((TG3(I,IHEM,JH,NL)/SKAP(NL))-
+     &               (TG3(I,IHEM,JH,NL-1)/SKAP(NL-1)))/
+     &               (P0*PLG3(I,IHEM,JH)*(SIGMA(NL)-SIGMA(NL-1)))
+
+            DTHDP2 = ((TSTAR(I,IHEM,JH))-
+     &               (TG3(I,IHEM,JH,NL)/SKAP(NL)))/
+     &               (P0*PLG3(I,IHEM,JH)*(1.0-SIGMA(NL)))
+C Dimensionalise by CT and turn Pa into hPa 
+
+            DTHDP1 = DTHDP1*752.015*1.0E2
+            DTHDP2 = DTHDP2*752.015*1.0E2
+*I LSCRN.145
+*/ Insert after the lines:
+*/               TG3(I,IHEM,JH,L)=TG3(I,IHEM,JH,L)+CTQUSE*QEX
+*/            ENDDO
+*/
+C Marine stratocumulus conditions (for cloud in layer NL-1)
+C Cloud top dth/dp < -0.03 K/hPa, near-surface dth/dp > -0.01 K/hPa 
+C no low cloud already diagnosed and ocean gridpoint
+C From Kawai and Inoue (SOLAS) 2006 with changed threshold
+C due to relatively coarse IGCM vertical resolution
+
+              IF ((SVEGE(I,IHEM,JH).EQ.1).AND.DTHDP2 .gt. -0.01
+     &        .AND.(CFRAC(I,IHEM,1).LT.1.0E-5))
+     &        THEN
+                ICFLAG(I,IHEM,1,1)=NL-1
+                ICFLAG(I,IHEM,1,2)=NL-1
+                CFRAC(I,IHEM,1)=MAX(MIN(-12.0*(DTHDP1+0.03),1.0),0.0)
+              ENDIF
+*/ ---------------------------------------
+*/ 4.  CLOUDS AND MORCRETTE RADIATION BIT
+*/ ---------------------------------------
+*/
+*/ Convective and large scale cloud properties
+*/
+*D CBADJ.197,198
+C Deep conv cloud vs precip based on Slingo 1987 now includes 
+C 75% reduction ABOVE CLOUD BASE (see later) as detailed in that paper
+C            CFRAC(I,IHEM,5)=0.245+0.125*LOG(P)
+C            CFRAC(I,IHEM,5)=MIN(1.0,CFRAC(I,IHEM,5))
+            CFRAC(I,IHEM,5)=0.25*(0.245+0.125*LOG(P))
+            CFRAC(I,IHEM,5)=MIN(0.25,CFRAC(I,IHEM,5))
+C Large-scale cloud sceheme not designed for conditions 
+C when convective cloud present and RH > 0.8.
+C Remove middle or low cloud when convective cloud present
+C High level anvil cirrus is allowed
+*I LSCRN.44
+      REAL :: CONVMULT(NL)
+*B LSCRN.60
+            DO L=1,NL
+              CONVMULT(L)=1.0
+            END DO
+C Check for deep convective cloud
+            IF(CFRAC(I,IHEM,5).GT.1.0E-8)THEN
+              DO L=ICFLAG(I,IHEM,5,2),ICFLAG(I,IHEM,5,1)
+                CONVMULT(L)=0.0
+              END DO
+            ENDIF
+C Check for shallow convective cloud
+            IF(CFRAC(I,IHEM,4).GT.1.0E-8)THEN
+              DO L=ICFLAG(I,IHEM,4,2),ICFLAG(I,IHEM,4,1)
+                CONVMULT(L)=0.0
+              END DO
+            ENDIF
+*D LSCRN.92
+                        CFRAC(I,IHEM,2)=CFR*CONVMULT(L)
+*D LSCRN.102
+                        CFRAC(I,IHEM,1)=CFR*CONVMULT(L)
+*/
+*/ Cloud in radiation
+*/
+*D ZMORC.307,325
+      IF (NBASE.GT.0.and.ZCC(JL).gt.1.0E-5)THEN
+C cloud water ~< 15-20 mg/m3 in tropics from Su et al JGR 2011
+        DO ITCC=NTOP,NBASE
+          ZQLWP(JL,ITCC)=ZCC(JL)*5.0E-5
+          ZCLC(JL,ITCC)=ZCC(JL)
+        ENDDO
+C deep conv cloudbase is 4x rest of cloud from Slingo et al 1987
+        if(apm1(jl,ntop)/apm1(jl,nrlev).lt.0.7)THEN
+          ZQLWP(JL,NBASE)=ZQLWP(JL,NBASE)*4.0
+          ZCLC(JL,NBASE)=ZCLC(JL,NBASE)*4.0
+        ENDIF
+      ENDIF
+C LARGE SCALE CLOUDS parameterised by supersaturation.
+C Note clouds occur at one level in IGCM so tuning to match
+C observations takes account of this esp for mid-level cloud
+
+      ZQLWP(JL,ITL)=ZQLWP(JL,ITL)+0.05*ZQS(JL,ITL)*ZCL(JL)
+      ZQLWP(JL,ITM)=ZQLWP(JL,ITM)+0.05*ZQS(JL,ITM)*ZCM(JL)
+      ZQLWP(JL,ITH)=ZQLWP(JL,ITH)+0.05*ZQS(JL,ITH)*ZCH(JL)
+      ZCLC(JL,ITL)=ZCLC(JL,ITL)+ZCL(JL)
+      ZCLC(JL,ITM)=ZCLC(JL,ITM)+ZCM(JL)
+      ZCLC(JL,ITH)=ZCLC(JL,ITH)+ZCH(JL)
+
+*D ZMORC.340,342
+C No extra tuning
+C      ZQLWP(JL,JK)=CVMGT(ZQLWP(JL,JK),0.0,LO)/4.0
+       if (ZCLC(JL,JK).le.ZEPCLC) then
+          ZQLWP(JL,JK)=0.0
+       endif
+*/
+*/ ---------------------------------------
+*/ 5.  SURFACE ENERGY BALANCE CORRECTION BIT
+*/ ---------------------------------------
+*/
+*/ correct for surface flux given to surface by integrating
+*/ heating rate HTNET in sigma and scaling to flux dimensions
+*/
+*I MORC.102
+      REAL :: fhtot,fhcorr
+*I MORC.424
+               fhtot=0.0
+*I MORC.436
+                 fhtot=fhtot+htnet(ihem,jh,i,ld)*1.0*
+     :           dsigma(LD)*pr(1)*(GASCON/AKAP/GA)/86400.
+*/
+*/ PNET-SNET-(Integrated and scaled HTNET) should be zero.
+*/ "Extra" flux fhcorr is added to OLR
+*/
+*I MORC.437
+               fhcorr=PNET(I,IHEM,JH)-SNET(I,IHEM,JH)-fhtot
+               fluxes(2,2,1)=fluxes(2,2,1)+fhcorr
+               rrflux(I,IHEM,JH,6)=rrflux(I,IHEM,JH,6)+fhcorr
+               PNET(I,IHEM,JH)=PNET(I,IHEM,JH)-fhcorr
+*/ change diagnosis
+*D DGRMLT.200,202
+               rflux(I,IHEM,JH,2)=snet(I,IHEM,JH)-
+     &              CV*P0*(shbl(I,IHEM,JH)+slbl(I,IHEM,JH))
+*/

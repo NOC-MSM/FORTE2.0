@@ -1,0 +1,664 @@
+\newpage
+\begin{section}{CLIM communication technique subroutines}
+\label{app_routines}
+
+
+This Appendix contains an overview of all the CLIM subroutines.
+\end{section}
+\newpage
+
+%
+% Liste des subroutines CLIM
+% --------------------------
+%
+% -CLIM_Define  (cport,kinout,ktype,kparal,kinfo)
+%  CLIM_Defport (cport,kinout,ktype,kparal,kinfo)
+%
+\name{CLIM\_Define}{Port Managment}
+\addcontentsline{toc}{subsection}{\tt CLIM\_Define}
+\begin{description}
+  \item[Synopsis]~ \\[10pt]
+        {\tt call CLIM\_Define ( cport,kinout,ktype,kparal,kinfo )}
+  \item[Arguments]~
+    \begin{description}
+      \item {\sc In} \\[5pt]
+        \begin{tabular}{l l p{10cm} }
+           {\tt cport}   & - & symbolic port name (char string) \\
+           {\tt kinout}   & - & port status (integer) \\
+           {\tt ktype }   & - & port data type (integer) \\
+           {\tt kparal}   & - & parallel decomposition (integer array) \\
+        \end{tabular}   
+      \item {\sc Out} \\[5pt]
+        \begin{tabular}{l l l}
+           {\tt kinfo}    & - & error status (integer) \\
+        \end{tabular}    
+     \end{description}
+  \item[Discussion]~\\[10pt]
+    The {\tt CLIM\_Define} function associates a port to
+    a symbolic name (no more than {\tt CLIM\_Clength} characters) and
+    some specifications:  \\
+
+    The port status {\tt kinout} can be: \\
+    \hspace*{2cm} {\tt CLIM\_In} \\
+    \hspace*{2cm} {\tt CLIM\_Out} \\
+    \hspace*{2cm} {\tt CLIM\_InOut} \\
+
+    Data types recognized by CLIM are : \\
+    \hspace*{2cm} {\tt CLIM\_Integer} : implicit 32-bits integers.\\
+    \hspace*{2cm} {\tt CLIM\_Real} : 32-bits floats. \\
+    \hspace*{2cm} {\tt CLIM\_Double} : 64-bits floats. \\
+  
+    The array {\tt kparal} of size {\tt CLIM\_ParSize} 
+    describes the parallel decomposition
+    associated to this port. It should always be filled using pre-defined
+    constants associated to several strategies as following: \\
+    \begin{itemize}
+      \item {\tt kparal ( CLIM\_Strategy ) = CLIM\_Serial} \\
+        It's the simplest strategy when the calling model views the
+        entire data field. There is no data distribution, and when
+        importing through this port, the model expects to retrieve
+        the complete field. Note, that this doesn't mean that the field
+        is coming from serial models, but rather that the calling
+        model at least is serial. Then, there is only one argument to
+        give for describing the field - its length:\\
+        {\tt kparal ( CLIM\_Length )} = {\it length-of-the-field} \\
+
+      \item  {\tt kparal ( CLIM\_Strategy ) =  CLIM\_Apple} \\
+        The calling model handles a contiguous set of
+        data, as a part of a global one splitted over several processes. 
+        The strip is described by its length and its offset in the
+        global field (the starting point minus one, see the Appendice 
+        IIa for an illustrated example):\\
+        {\tt kparal ( CLIM\_Length )} = {\it length-of-the-strip} \\
+        {\tt kparal ( CLIM\_Offset )} = {\it offset-in-the-global-field} \\
+
+      \item  {\tt kparal ( CLIM\_Strategy ) = CLIM\_Box} \\
+        The calling model handles a rectangular subset of the global
+        field, described with 2D parameters (see the Appendice IIb for
+        an illustrated example):\\
+        {\tt kparal ( CLIM\_Offset )} = {\it offset-in-the-global-field} \\
+        {\tt kparal ( CLIM\_SizeX  )} = {\it size-in-the-first-direction} \\
+        {\tt kparal ( CLIM\_SizeY  )} = {\it size-in-the-second-direction} \\
+        {\tt kparal ( CLIM\_LdX    )} = 
+             {\it leading-dimension-of-the-global-field} \\
+
+      \item  {\tt kparal ( CLIM\_Strategy ) = CLIM\_Orange} \\
+        This is the most general parallel distribution of data since the
+        user describes, segment per segment, the subset of data handled by the
+        calling process. Thus, the following informations should be provided in
+        the {\tt kparal} array 
+        (see the Appendice IIc for an illustrated example):\\
+        {\tt kparal ( CLIM\_Segments )} = {\it number-of-segments} \\
+        {\tt kparal ( CLIM\_Segments +1 )} = {\it offset-of-segment\#1} \\
+        {\tt kparal ( CLIM\_Segments +2 )} = {\it length-of-segment\#1} \\
+        {\tt kparal ( CLIM\_Segments +3 )} = {\it offset-of-segment\#3} \\
+        and so on...
+
+    \end{itemize}
+
+  \item[Example]~
+    \begin{verbatim}
+c
+      integer myid, npar ( CLIM_ParSize ), info
+      ...
+c
+c*    global field and process numbers:
+c            ------------
+c            |1111122222|
+c            |2222211111|
+c            ------------
+c
+      npar ( CLIM_Strategy ) = CLIM_Orange
+      if ( myid.eq.1 )
+         npar ( CLIM_Segments ) = 2
+         npar ( CLIM_Segments + 1 ) = 0
+         npar ( CLIM_Segments + 2 ) = 5
+         npar ( CLIM_Segments + 3 ) = 15
+         npar ( CLIM_Segments + 2 ) = 5
+      else
+         npar ( CLIM_Segments ) = 1
+         npar ( CLIM_Segments + 1 ) = 5
+         npar ( CLIM_Segments + 2 ) = 10
+      endif
+c
+      call CLIM_Define ( 'port-1-2', CLIM_Out, CLIM_Real, npar, info )
+      ...
+    \end{verbatim}
+  \item[Errors]~\\[10pt]
+    \begin{tabular}{l l p{10cm} }
+      {\tt CLIM\_DoubleDef} & - & The specified port name is already used
+with the same port status.\\
+      {\tt CLIM\_BadType} & - & the {\tt ktype} argument is not
+recognized.\\
+    \end{tabular}
+\end{description}
+%
+% -CLIM_Delta   (cnam,pdt,pde,kinfo)
+%
+\name{CLIM\_Delta}{Comfort Routine}
+\addcontentsline{toc}{subsection}{\tt CLIM\_Delta}
+\begin{description}
+  \item[Synopsis]~ \\[10pt]
+    {\tt call CLIM\_Delta ( cnam,pdt,pde,kinfo )}
+  \item[Arguments]~
+    \begin{description}
+      \item {\sc In} \\[5pt]
+        \begin{tabular}{l l p{10cm} }
+           {\tt cnam}  & - & remote model name (char string) \\
+        \end{tabular}   
+      \item {\sc Out} \\[5pt]
+        \begin{tabular}{l l l}
+           {\tt pdt} & - & difference with the remote model's wall 
+                           clock in seconds (double real) \\
+           {\tt pde} & - & elapsed time needed to measure pdt
+                           in seconds (double real) \\
+           {\tt kinfo} & - & error status (integer) \\
+        \end{tabular}    
+     \end{description}
+  \item[Discussion]~\\[10pt]
+    {\tt CLIM\_Delta} returns a difference between two wall clocks.
+    Therefore if model $a$ asks for his ``delta time'' $\Delta(b)$
+    with model $b$ which had done the measurement $T_b$, the expression
+    $T_b + \Delta(b)$ is comparable to a time measurement done by model
+    $a$. \\
+
+    The measurement of $\Delta(b)$ is obtained through several
+    {\it ping-pong} exchanges. The $\Delta(b)$ value selected is
+    associated to the smallest elapsed time measured on the local model
+    for performing a {\it ping-pong}. This value is returned in
+    the {\tt pde} argument for information purpose on the accuracy of
+    the {\tt pdt} value.
+  \item[Example]~
+    \begin{verbatim}
+c
+      integer info
+      real*8  dt, de, t1, t2
+      ...
+      call CLIM_Delta ( 'MODEL2', dt, de, info )
+      ...
+      call CLIM_Time ( t1, info )
+      call CLIM_Import ( 'Time MODEL2', CLIM_Void, t2, info )
+      write(6,*) 'Homogeneous timing: ', t2+dt-t1
+    \end{verbatim}
+  \item[Errors]~\\[10pt]
+    \begin{tabular}{l l p{10cm} }
+      {\tt CLIM\_BadName} & - & The {\tt cnam} model was not found. \\
+    \end{tabular}
+\end{description}
+%
+% -CLIM_Export  (cport,kstep,pfield,kinfo)
+%
+\name{CLIM\_Export}{Port Management}
+\addcontentsline{toc}{subsection}{\tt CLIM\_Export}
+\begin{description}
+  \item[Synopsis]~ \\[10pt]
+    {\tt call CLIM\_Export ( cport,kstep,pfield,kinfo )}
+  \item[Arguments]~
+    \begin{description}
+      \item {\sc In} \\[5pt]
+        \begin{tabular}{l l p{10cm} }
+           {\tt cport }   & - & symbolic port name (char string) \\
+           {\tt kstep }   & - & time step (integer) \\
+           {\tt pfield}   & - & data buffer (handle) \\
+        \end{tabular}   
+      \item {\sc Out} \\[5pt]
+        \begin{tabular}{l l l}
+           {\tt kinfo}    & - & error status (integer) \\
+        \end{tabular}    
+     \end{description}
+  \item[Discussion]~\\[10pt]
+    The {\tt CLIM\_Export} functions delivers to the ``outside world''
+    the data starting at the address {\tt pfield} on the port {\tt
+    cport}. If this action is not related to an iterative scheme, 
+    {\tt kstep} can be set to {\tt CLIM\_Void}.
+  \item[Example]~
+    \begin{verbatim}
+      ...
+      call CLIM_Export ( 'A Great Example', CLIM_Void, null, info )
+    \end{verbatim}
+  \item[Errors]~\\[10pt]
+    \begin{tabular}{l l p{10cm} }
+      {\tt CLIM\_BadPort} & - & The specified port was not found. \\
+      {\tt CLIM\_NotStep} & - & {\tt kstep} is not a coupling step of
+the model as it was defined by the {\tt CLIM\_Init} call. \\
+      {\tt CLIM\_IncStep} & - & {\tt kstep} is an incompatible coupling
+step for the matching models. \\
+      {\tt CLIM\_NoTask} & - & One of the remote processes associated to
+this port doesn't exist any more. \\
+      {\tt CLIM\_BadTaskId} & - & One of the PVM task identifier
+describing a model associated to this port doesn't exist any more. \\
+      {\tt CLIM\_Down} & - & The Parallel Virtual Machine is partially
+or completly down. You'd better stop. \\
+      {\tt CLIM\_InitBuff} & - & The process is unable to get a PVM
+buffer for sending the message (see the {\tt pvmfinitsend} error code). \\
+      {\tt CLIM\_Pack} & - & an error occured when packing the message
+(see the {\tt pvmfpack} error code. \\
+      {\tt CLIM\_Pvm} & - & A trouble occured when sending the message (see
+the {\tt pvmfsend} error code. \\
+    \end{tabular}
+\end{description}
+%
+% -CLIM_Import  (cport,kstep,pfield,kinfo)
+%
+\name{CLIM\_Import}{Port Management}
+\addcontentsline{toc}{subsection}{\tt CLIM\_Import}
+\begin{description}
+  \item[Synopsis]~ \\[10pt]
+    {\tt call CLIM\_Import ( cport,kstep,pfield,kinfo )}
+  \item[Arguments]~
+    \begin{description}
+      \item {\sc In} \\[5pt]
+        \begin{tabular}{l l p{10cm} }
+           {\tt cport }   & - & symbolic port name (char string) \\
+           {\tt kstep }   & - & time step (integer) \\
+        \end{tabular}   
+      \item {\sc Out} \\[5pt]
+        \begin{tabular}{l l l}
+           {\tt pfield}   & - & data buffer (handle) \\
+           {\tt kinfo}    & - & error status (integer) \\
+        \end{tabular}    
+     \end{description}
+  \item[Discussion]~\\[10pt]
+    The {\tt CLIM\_Import} function waits for data coming on the port
+    {\tt cport} from the ``outside world''.
+    The data received is stored in the buffer {\tt pfield}.
+    If this action is not related to an iterative scheme,
+    {\tt kstep} can be set to {\tt CLIM\_Void}
+  \item[Example]~
+    \begin{verbatim}
+      ...
+      call CLIM_Import ( 'One More', CLIM_Void, anything, info )
+    \end{verbatim}
+  \item[Errors]~\\[10pt]
+    \begin{tabular}{l l p{10cm} }
+      {\tt CLIM\_BadPort} & - & The specified port was not found. \\
+      {\tt CLIM\_NotStep} & - & {\tt kstep} is not a coupling step of
+the model as it was defined by the {\tt CLIM\_Init} call. \\
+      {\tt CLIM\_IncStep} & - & {\tt kstep} is an incompatible coupling
+step for the matching models. \\
+      {\tt CLIM\_NoTask} & - & One of the remote processes associated to
+this port doesn't exist any more. \\
+      {\tt CLIM\_BadTaskId} & - & One of the PVM task identifier
+describing a model associated to this port doesn't exist any more. \\
+      {\tt CLIM\_Down} & - & The Parallel Virtual Machine is partially
+or completly down. You'd better stop. \\
+      {\tt CLIM\_UnPack} & - & an error occured when unpacking the message
+(see the {\tt pvmfunpack} error code. \\
+      {\tt CLIM\_Pvm} & - & A trouble occured when sending the message (see
+the {\tt pvmfsend} error code. \\
+      {\tt CLIM\_TimeOut} & - & A time out occured when receiving the
+message. \\
+    \end{tabular}
+\end{description}
+%
+% -CLIM_Init    (cexp,cnam,kno,ktrout,
+%                kstep,kfcpl,kdt,ktiret,ktiogp,ktiout,kinfo)
+%
+\name{CLIM\_Init}{Process Management}
+\addcontentsline{toc}{subsection}{\tt CLIM\_Init}
+\begin{description}
+  \item[Synopsis]~ 
+    \begin{tabbing}
+    {\tt call CLIM\_Init (} \= {\tt cexp,cnam,kno,ktrout,}\\
+                           \> {\tt kstep,kfcpl,kdt,}\\
+                           \> {\tt ktiret,ktiogp,ktiout,kinfo )}
+    \end{tabbing}
+  \item[Arguments]~
+    \begin{description}
+      \item {\sc In} \\[5pt]
+        \begin{tabular}{l l p{10cm} }
+           {\tt cexp}  & - & name of the experiment (char string) \\
+           {\tt cnam}  & - & name of the model (char string) \\
+           {\tt kno}   & - & number of models in the experiment (integer) \\
+           {\tt ktrout} & - & unit number of the trace file (integer) \\
+           {\tt kstep}  & - & number of time steps (integer) \\
+           {\tt kfcpl}  & - & frequency of coupling in time steps (integer)\\
+           {\tt kdt}    & - & length of a time step in seconds (integer) \\
+           {\tt ktiret} & - & time in seconds between two checks when
+                              gathering models (integer) \\
+           {\tt ktiogp} & - & time out in seconds when gathering models
+                              (integer) \\
+           {\tt ktiout} & - & time out in seconds when receiving a message 
+                              (integer) \\
+        \end{tabular}   
+      \item {\sc Out} \\[5pt]
+        \begin{tabular}{l l l}
+           {\tt kinfo}    & - & error status (integer) \\
+        \end{tabular}    
+     \end{description}
+  \item[Discussion]~\\[10pt]
+    {\tt CLIM\_Init} should be the first call to the CLIM library.
+    It performs miscellaneous initiliazations:
+    \begin{itemize}
+      \item The {\tt CLIM\_Init} call registers the model {\tt cnam}
+      in the experiment {\tt cexp} which is supposed to include
+      {\tt kno} different processes. \\
+      \item {\tt ktrout} specifies an unit number for the CLIM trace file
+      associated to the calling process.\\
+      \item If the model is not related to an iterative time step scheme, the
+      arguments {\tt kstep}, {\tt kfcpl} and {\tt kdt} can be set to {\tt
+      CLIM\_Void}. However, it is safer to create a artificial time stepping
+      (by counting the messages for exemple). \\
+      \item In order to save CPU time when waiting for models to join the
+      experiment (this action is performed by CLIM\_Start), a process
+      is sleeping {\tt ktiret} seconds between two checks, and exit
+      after {\tt ktiogp} seconds if some model is missing.
+      For all the remaining communications, the calling process will never
+      wait more than {\tt ktiout} seconds when receiving a message.
+    \end{itemize}
+  \item[Example]~
+    \begin{verbatim}
+c*    A climatic experiment
+c       ... the atmospheric point of view:
+c
+      call CLIM_Init ( 'Climat', 'Atmos', 2, 99,
+     +                 480, 96, 900, 60, 3600, 3600, info )
+c
+c     means: 2 models a "Climat" experiment,
+c            Atmos will perform 480 time steps of 900 seconds each
+c            and expect coupled fields every day (96 time steps).
+c            A check for the other model will occur every minute when
+c            starting the application,
+c            and both time out values are set to one hour.
+    \end{verbatim}
+  \item[Errors]~\\[10pt]
+    \begin{tabular}{l l p{10cm} }
+      {\tt CLIM\_FirstCall} & - & An error occured when calling {\tt
+pvmfmytid}. The Parallel Virtual Machine may be badly configured. \\
+      {\tt CLIM\_PbRoute} & - & An error occured when setting the route
+option (see the {\tt pvmfsetopt} error code). \\
+    \end{tabular}
+\end{description}
+%
+% -CLIM_Quit    (kstop,kinfo)
+%
+\name{CLIM\_Quit}{Process Management}
+\addcontentsline{toc}{subsection}{\tt CLIM\_Quit}
+\begin{description}
+  \item[Synopsis]~ \\[10pt]
+    {\tt call CLIM\_Quit ( kstop,kinfo )}
+  \item[Arguments]~
+    \begin{description}
+      \item {\sc In} \\[5pt]
+        \begin{tabular}{l l p{10cm} }
+           {\tt kstop} & - & exit code for PVM (integer) \\
+        \end{tabular}   
+      \item {\sc Out} \\[5pt]
+        \begin{tabular}{l l l}
+           {\tt kinfo}    & - & error status (integer) \\
+        \end{tabular}    
+     \end{description}
+  \item[Discussion]~\\[10pt]
+    {\tt CLIM\_Quit} properly exits from the CLIM experiment according
+    to the {\tt kstop} value:
+    \begin{itemize}
+      \item {\tt CLIM\_ContPvm}: the calling process needs to stay in
+            the Parallel Virtual Machine.
+      \item {\tt CLIM\_StopPvm}: the {\tt CLIM\_Quit} call also exits
+            from the Parallel Virtual Machine.
+    \end{itemize}
+    Before leaving the eperiment, the models are synchronized.
+  \item[Example]~
+    \begin{verbatim}
+c*    time to leave work...
+c
+      call CLIM_Quit ( CLIM_StopPvm )
+    \end{verbatim}
+  \item[Errors]~\\[10pt]
+    \begin{tabular}{l l p{10cm} }
+      {\tt CLIM\_Group} & - & An error occured when calling a PVM group
+function (see the trace file). \\
+      {\tt CLIM\_PvmExit} & - & An error occured when exiting from PVM. \\
+    \end{tabular}
+\end{description}
+%
+% -CLIM_Reset   (kinfo)
+%
+\name{CLIM\_Reset}{Process Management}
+\addcontentsline{toc}{subsection}{\tt CLIM\_Reset}
+\begin{description}
+  \item[Synopsis]~ \\[10pt]
+    {\tt call CLIM\_Reset ( kinfo )}
+  \item[Arguments]~
+    \begin{description}
+      \item {\sc In} \\[5pt]
+        \begin{tabular}{l l p{10cm} }
+          none
+        \end{tabular}   
+      \item {\sc Out} \\[5pt]
+        \begin{tabular}{l l l}
+          {\tt kinfo}    & - & error status (integer) \\
+        \end{tabular}    
+     \end{description}
+  \item[Discussion]~\\[10pt]
+    Calling {\tt CLIM\_Reset} allows the user to dynamically restart
+    a new coupled application in the same running executable. 
+    All the port and model definitions are
+    removed and a new sequence of {\tt CLIM\_Init}-{\tt CLIM\_Define}-
+    {\tt CLIM\_Start} can be started for a new experiment. A global
+    barrier is performed in the current experiment before leaving.
+    The user should give a new unit number for the trace file of the
+    next experiment.
+  \item[Example]~
+    \begin{verbatim}
+c
+      if ( info.ne.CLIM_Ok ) then
+         call CLIM_Reset ( info )
+c        re-start the experiment !
+         ...
+      endif
+    \end{verbatim}
+  \item[Errors]~\\[10pt]
+    \begin{tabular}{l l p{10cm} }
+      {\tt CLIM\_Group} & - & An error occured when calling a PVM group
+function (see the trace file). \\
+    \end{tabular}
+\end{description}
+
+%
+% -CLIM_Start   (kmxtag,kinfo)
+%  CLIM_Hostdt  (ktid,ktag,pdt,pde)
+%  CLIM_Nodedt  (ktid,ktag)
+%
+\name{CLIM\_Start}{Process Management}
+\addcontentsline{toc}{subsection}{\tt CLIM\_Start}
+\begin{description}
+  \item[Synopsis]~ \\[10pt]
+    {\tt call CLIM\_Start ( kmxtag,kinfo )}
+  \item[Arguments]~
+    \begin{description}
+      \item {\sc In} \\[5pt]
+        \begin{tabular}{l l p{10cm} }
+           {\tt none}
+        \end{tabular}   
+      \item {\sc Out} \\[5pt]
+        \begin{tabular}{l l l}
+           {\tt kmxtag}   & - & Maximum tag number to use \\
+           {\tt kinfo}    & - & error status (integer) \\
+        \end{tabular}    
+     \end{description}
+  \item[Discussion]~\\[10pt]
+    {\tt CLIM\_Start} is the last part of the initialization scheme
+    after {\tt CLIM\_Init} and the ports definitions ({\tt CLIM\_Define}).
+    It performs the gathering of the models using the same experiment
+    name, and exchanges ports definitions in order to create all the
+    possible {\it links}. \\
+
+    In order to distinguish the use of PVM by CLIM from the rest of
+    the application, a maximum tag number is provided. Using tag numbers
+    lower than {\tt kmxtag} guaranties that the calling process will not
+    interfere with internal CLIM messages.
+
+    (Note that on a SGI O2000, PVMDATAINPLACE may be not implemented
+    and may have to be changed to PVMDATADEFAULT.)
+  \item[Example]~
+    \begin{verbatim}
+c*    Init and ports definitions are done, so let's start:
+c 
+      call CLIM_Start ( imaxtag, info )
+    \end{verbatim}
+  \item[Errors]~\\[10pt]
+    \begin{tabular}{l l p{10cm} }
+      {\tt CLIM\_Group} & - & An error occured when calling a PVM group
+function (see trace file). \\
+      {\tt CLIM\_TimeOut} & - & A time out occured either when gathering
+models or when receiving models' internal descriptions. \\
+      {\tt CLIM\_IncSize} & - & A link cannot be created because of
+incompatible port sizes. \\
+    \end{tabular}
+\end{description}
+%
+% -CLIM_Stepi   (cnam,kstep,kfcpl,kdt,kinfo)
+%
+\name{CLIM\_Stepi}{Comfort Routine}
+\addcontentsline{toc}{subsection}{\tt CLIM\_Stepi}
+\begin{description}
+  \item[Synopsis]~ \\[10pt]
+    {\tt call CLIM\_Stepi ( cnam,kstep,kfcpl,kdt,kinfo )}
+  \item[Arguments]~
+    \begin{description}
+      \item {\sc In} \\[5pt]
+        \begin{tabular}{l l p{10cm} }
+           {\tt cnam}  & - & name of the remote model (char string) \\
+        \end{tabular}   
+      \item {\sc Out} \\[5pt]
+        \begin{tabular}{l l l}
+           {\tt kstep}  & - & number of time steps (integer) \\
+           {\tt kfcpl}  & - & frequency of coupling in time steps (integer)\\
+           {\tt kdt}    & - & length of a time step in seconds (integer) \\
+           {\tt kinfo}  & - & error status (integer) \\
+        \end{tabular}    
+     \end{description}
+  \item[Discussion]~\\[10pt]
+    {\tt CLIM\_Stepi} returns time steps informations from the {\tt cnam} model.  \item[Example]~
+    \begin{verbatim}
+      ...
+      call CLIM_Stepi ( 'Remote Model', nb_steps, fr_steps, dt_steps, info )
+    \end{verbatim}
+  \item[Errors]~\\[10pt]
+    \begin{tabular}{l l p{10cm} }
+      {\tt CLIM\_BadName} & - & The {\tt cnam} model was not found. \\
+    \end{tabular}
+\end{description}
+%
+% -CLIM_Time    (pt,kinfo)
+%
+\name{CLIM\_Time}{Comfort Routine}
+\addcontentsline{toc}{subsection}{\tt CLIM\_Time}
+\begin{description}
+  \item[Synopsis]~ \\[10pt]
+    {\tt call CLIM\_Time ( pt,kinfo )}
+  \item[Arguments]~
+    \begin{description}
+      \item {\sc In} \\[5pt]
+        \begin{tabular}{l l p{10cm} }
+           {\tt pt}   & - & absolute time in seconds (double real) \\
+        \end{tabular}   
+      \item {\sc Out} \\[5pt]
+        \begin{tabular}{l l l}
+           {\tt kinfo}  & - & error status (integer) \\
+        \end{tabular}    
+     \end{description}
+  \item[Discussion]~\\[10pt]
+    {\tt CLIM\_Time} returns an absolute elapsed time in seconds. An
+    elapsed time in the application should be the difference between two
+    calls to {\tt CLIM\_Time} (possibly using {\tt CLIM\_Delta} if one
+    measurement is coming from a remote host).
+  \item[Example]~
+    \begin{verbatim}
+c
+      real*8 t0
+c
+      call CLIM_Time ( t0, info )
+      write(6,*) 'Absolute time in seconds: ', t0
+    \end{verbatim}
+  \item[Errors]~\\[10pt]
+    \begin{tabular}{l l p{10cm} }
+    \end{tabular}
+\end{description}
+%
+% -CLIM_Trace   (ksend,krecv,kinfo)
+%
+\name{CLIM\_Trace}{Comfort Routine}
+\addcontentsline{toc}{subsection}{\tt CLIM\_Trace}
+\begin{description}
+  \item[Synopsis]~ \\[10pt]
+    {\tt call CLIM\_Trace ( ksend,krecv,kinfo )}
+  \item[Arguments]~
+    \begin{description}
+      \item {\sc In} \\[5pt]
+        \begin{tabular}{l l p{10cm} }
+        \end{tabular}   
+      \item {\sc Out} \\[5pt]
+        \begin{tabular}{l l l}
+           {\tt ksend}  & - & number of bytes already sent (integer) \\
+           {\tt krecv}  & - & number of bytes already received (integer) \\
+           {\tt kinfo}  & - & error status (integer) \\
+        \end{tabular}    
+     \end{description}
+  \item[Discussion]~\\[10pt]
+    {\tt CLIM\_Trace} returns some crude statistics about the number of
+    bytes sent and received by the calling process in the CLIM experiment.
+  \item[Example]~
+    \begin{verbatim}
+c
+      integer nb_send, nb_recv, info
+c
+      call CLIM_Trace ( nb_send, nb_recv, info )
+      write(6,*) 'I sent ', nb_send, ' bytes'
+      write(6,*) 'and received ', nb_recv
+    \end{verbatim}
+  \item[Errors]~\\[10pt]
+    \begin{tabular}{l l p{10cm} }
+    \end{tabular}
+\end{description}
+%
+% -CLIM_Wait    (cport,kstep,kinfo)
+%
+\name{CLIM\_Wait}{Port Management}
+\addcontentsline{toc}{subsection}{\tt CLIM\_Wait}
+\begin{description}
+  \item[Synopsis]~ \\[10pt]
+    {\tt call CLIM\_Wait ( cport,kstep,kinfo )}
+  \item[Arguments]~
+    \begin{description}
+      \item {\sc In} \\[5pt]
+        \begin{tabular}{l l p{10cm} }
+          none
+        \end{tabular}   
+      \item {\sc Out} \\[5pt]
+        \begin{tabular}{l l l}
+           {\tt cport}   & - & symbolic port name (char string) \\
+           {\tt kstep}   & - & time step (integer) \\
+          {\tt kinfo}  & - & error status (integer) \\
+        \end{tabular}    
+     \end{description}
+  \item[Discussion]~\\[10pt]
+    {\tt CLIM\_Wait} is probing for any message to the calling process.
+    The user should be aware that this mechanism is not CPU free. If a
+    message is received before the time out, the associated port name
+    and time step are returned. It could happenned than the message doesn't
+    belong to the CLIM experiment. Therefore the calling process
+    should read (receive) this message and then call back 
+    the {\tt CLIM\_Wait} function in order to check for a CLIM message.
+  \item[Example]~
+    \begin{verbatim}
+      character*(CLIM_Clength) cport
+      integer istep, info
+c
+      call CLIM_Wait ( cport, istep, info )
+      if ( info.eq.CLIM_NotClim ) then
+         call RecvNext
+      else
+         call CLIM_Import ( cport, istep, buff, info )
+      endif
+    \end{verbatim}
+  \item[Errors]~\\[10pt]
+    \begin{tabular}{l l p{10cm} }
+      {\tt CLIM\_Down} & - & The Parallel Virtual Machine is partially
+or completly down. You'd better stop. \\
+      {\tt CLIM\_TimeOut} & - & No message present before the time limit.\\
+      {\tt CLIM\_NotClim} & - & The first messqge queued is not a
+``Clim'' message, but a private message of the parallel application. \\
+    \end{tabular}
+\end{description}

@@ -1,0 +1,62 @@
+\newpage
+\begin{section}{Step-by-step use of OASIS}
+\label{sec_step}
+To use OASIS for coupling independent models, one has to follow these
+steps:
+\begin{enumerate}
+\item Familiarize yourself with a toy coupling by running a toy
+coupled model with either the PIPE technique 
+(see directory {\tt /toypipe}), the SIPC technique 
+(see directory {\tt /toysvipc}), the CLIM technique
+(see directory {\tt /toyclim}), or the GMEM technique 
+(see directory {\tt /toysxgmem}).
+\item Identify for the present coupling the fields exchanged from 
+each model to another model.
+\item Define for each coupling field the analyses required to go from 
+one model to the other, that will be performed by OASIS (refer to 
+\ref{subsec_analyses}).
+\item Define all coupling parameters (time strategy, communication 
+technique, etc. - see \ref{subsubsec_general}).
+\item With 2., 3. and 4., prepare OASIS input file {\em namcouple}
+(see \ref{subsec_input}). Two examples of {\em namcouple} are given 
+in appendix \ref{app_namcouple} and one can also find a file example 
+{\tt /src/namcouple}.
+
+\item Generate all auxiliary data files (see \ref{subsec_data}).
+
+\item Adjust OASIS parameters in {\tt src/parameter.h} (see 
+\ref{subsec_parameters}).
+
+\item Compile OASIS main, communication and interpolation libraries used 
+in the coupling. Note that some machines (like the Fujitsu VPP) do not 
+support undefined external references; in that case you may have to compile 
+and link the {\tt lib/dummy} libraries of the communication techniques 
+NOT used in the coupling (see the makefiles in directory {\tt tools}
+for examples). Note that to run with the CLIM technique on a CRAY and
+avoid undefined external references, you
+need to compile and link the routines {\tt dummypipe.f}, 
+{\tt dummysvipc.f}, and {\tt svipcdummy.c} in {\tt lib/dummy}; to
+run with the CLIM technique on another machine than a CRAY and
+avoid undefined external references, you also
+need to need to compile and link with the same routines + 
+{\tt lib/dummy/dummysrc.f} (see {\tt /tools/Makefile\_clim}).
+ 
+\item Make the appropriate modifications in the models in order to allow
+the exchange of the coupling fields with the chosen communication technique.
+For the PIPE, CLIM, SIPC or GMEM communication techniques, refer 
+to the toy model given in respectively the /toypipe, /toyclim, /toysvipc 
+or /toysxgmem directory.
+
+\item Compile the models.
+
+\item Launch the coupled simulation.
+
+\end{enumerate}
+
+ If you need extra help, we will be happy to
+hear from you (oasishelp@cerfacs.fr)!
+
+
+
+\end{section}
+

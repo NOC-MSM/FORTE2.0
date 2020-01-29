@@ -1,0 +1,26 @@
+#!/bin/csh -f
+# script to establish a MOMA run_dir with a single command
+# Usage: CREATE.basic <name>
+
+set RUNNAME = $1
+set DIR = ../../run_dirs/moma/$RUNNAME.moma
+set MSRC = ../../../../source/moma_source
+
+if ( ! -e ../../run_dirs ) mkdir ../../run_dirs
+if ( ! -e ../../run_dirs/moma ) mkdir ../../run_dirs/moma
+
+if ( -e $DIR ) then
+ echo 'Directory alread exists! Delete (y/n)'
+   if ( $< == y ) then 
+    rm -r $DIR
+   else
+    echo 'Probably a wise choice! Choose another'
+    echo 'name or move the existing directory.'
+    exit
+   endif
+endif
+
+mkdir $DIR
+/bin/cp makefile levisalt.dat levitemp.dat ocean.in.template  ocean.kmtc.arctic_ridge_dp_ds sstatmos moma $DIR
+
+exit

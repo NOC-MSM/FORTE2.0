@@ -1,0 +1,1151 @@
+*/
+*/ Piece of code needed to replace the Nikos radiation scheme with
+*/ the Morcrette radiation scheme in the igcm3.1.
+*/ See morcrette3_1_1.readme for details.
+*/
+*/
+*COMDECK ZPARB
+C       ----------------------------------------------------------------
+C
+C*    COMMON *COMRSW* SWITCHES RELATED TO THE RADIATION SCHEME.
+C
+C       ----------------------------------------------------------------
+C
+      IMPLICIT REAL (A-H,O-Z)
+C      IMPLICIT UNDEFINED (Z)
+C      IMPLICIT LOGICAL (L)
+C      IMPLICIT UNDEFINED (L)
+      IMPLICIT INTEGER (I-K,M-N)
+C      IMPLICIT UNDEFINED (I-K,M-N)
+C      IMPLICIT REAL (P)
+C      IMPLICIT UNDEFINED (A-H,O,Q-Y)
+C
+C everything except the parameters is defined
+C in the common blocks
+C
+      COMMON/COM1/
+C     I NRADFR, NRPART, NRINT, NRADPFR, NRADPLA,
+C     I NRLSTI,
+     R XLAT,
+     R RDCPD, CCCC, CFCT, CRHH, CRHM, CRHL, CCLWMR, ZCCO2,
+C     R PSIG, PSCT, PCCO2, PCARDI, PTIM1, PTIM2, PTIM3,
+     L LOH, LOM, LOL, LORAD
+      COMMON/COM2/
+     I ISHIFT, JK, JKK, JL, JMM, IMM, IMNC, IMNS, JNN,
+     I         JLOOP, KRLEV,
+     I        NLEV2, NSTEP, NSTART, NLEVM1, NLEV2P1, JB, IBC,
+     I        ITH, ITM, ITL,
+     I        IMAXC, JK1, KRLEV2, JK2, IMX1, IMX2, JKJ, JKJR,
+     I        JKJP, IG1, JK3, IXTX, MXIXT, JKIP1,
+     I        JKI, JKP1, JKL, JKJPN, JI, JJ, JAE3, JJPN, IAE,
+     I        JAE1, JAE2, JC, JCP1, JNU, JA, IND1, IND2, IND3
+      COMMON/COM3/
+     I IND4, KM12, KXD, KXU, IG, KBS, KDD,
+     I        NUAER, KMU, KN, KD1, NTRAER, KJP1, KD2, KM1,
+     I        KJ, KU1, JLK, KU2, KTOPM, IMP, NOUT, IMXP1, IMXM1,
+     I        JKC, JCLOUD, JKCP1, JKM1, JKJ1, JKJ2, JK2M1, JKIJ,
+     I        JG, IABS, IAER, JKLP1, JAE, INU, JAJ, IWHERE, JABS,
+     I        JN, KREF, JAJP, JKKI, JN2J, JKKP4, JMN
+      COMMON/COM4/
+     R           COZQC,COZQS,COZHC,COZHS,
+     R CSUPSAT,
+     R API,      A,        OMEGA,    G,
+     R CPD,      CPV,      RD,       RV,
+     R RCPD,     VTMPC1,   VTMPC2,
+     R RHOH2O,   ALV,      ALS,      ALF,      CLW,      TMELT,
+     R SOLC,     STBO,     DAYL,     YEARL,
+     R C1ES,     C2ES,     C3LES,    C3IES,    C4LES,    C4IES,
+     R C5LES,   C5IES
+      COMMON/COM5/
+     I NM,       NN,       NK,       NGL,
+     I NTEMP2,   NMP1,     NNP1,     NKP1,     N2MP1,    N4MP1,
+     I NUMVC,
+     I NED,      NOD,      NSP,      N2SP,     NHGL,
+     I NSCAN,    NRESUM,
+     I NFFT,     NFFTW,
+     I NSPACE1,  NSPACE2,
+     I NCBASE,   NTBASE,   NTIMST,
+     I NWRITE,   NWPTR,
+     I NWLAG,
+     I NPP,      NPPTR,
+     I NPLAG,    NPPDATA,
+     I NFRECS,   NGRECS,   NDRECS,
+     I NSTOP,    MAXROW
+      COMMON/COM6/
+     L LHIGCM,   LSCYCL,   LHFCLR,   LHFSAV,
+     L LEND,     LDIFF1,   LINITER,  LDIFFRQ,  LWUNIN,   LWINIT,
+     L LDEBUG,   LSVPCTL,  LSSDFF,   LSSDGF,   LSSDIF,   LRESETP,
+     L LINTPP,   L2BUF,    LOWTIME,  LOPTIME,  LTSTATS,  LOCKLTD,
+     R DTIME,    TWODT,    EPS,
+     R SINLON,     COSLON,
+     I NFFTD1,   NRFFTD1,  NFFTD2,   NRFFTD2,  NFFTD3,   NRFFTD3,
+     I NFFTD4,   NRFFTD4,
+     I NFFTI1,   NRFFTI1,  NFFTI2,    NRFFTI2,
+     I NFAX,
+     R CRAE,
+     R CDISSEM
+      COMMON/COM7/
+     R     CCRH,
+     L LO,LO1,LO2,LODIA,LODIAP,
+     R TAUA, PIZA, CGA, CAER, CAEROS
+      COMMON/COM7A/
+     R  RT1,WG1,AT,BT,CNTNU,O1H,O2H,PIALF0
+     S ,OCT,TREF,XP,TSTAND,GA,GB,CE,ETY,PTY
+      COMMON/COM7B/
+     S TINTP,TSTP,
+     S  TBO3,AO3,BO3,TB,ALP,BET,ULG,ULGO,PLG,AP,BP,TO3B,O3A,O3B,
+     R          CDAY,CCO2,CH2O,DIFF,X10E
+       COMMON/COM7C/
+     S  ZEELOG,ZEPSC,ZEPSCO,ZEPSCQ,ZEPSCT,ZEPSCW,
+     R  APAD,BPAD,D,CRAY,SUN,
+     R   TTT,
+     R   TM1
+      COMMON/COM8/
+     R       TSM1M,
+     R       QM1,
+     R       SNM1M,
+     R       ALBM,
+     R       AVVELM,
+     R   SLMM,
+     R       APHM1,
+     R       APM1
+      COMMON/COM9/
+     L LOLAND,
+     R   ZTI,
+     *       ZCTI,
+     *       ZCPH,
+     *       ZWV,
+     *       ZSW,
+     *       ZALTE,
+     *       ZCALTE,
+     *       ZALSO
+      COMMON/COM10/
+     *       ZCALSO,
+     R   ZOZQ,
+     *       ZOZH,
+     R   ZTRSOL,
+     *       ZEMTER,
+     R   TRSOLM,
+     *       EMTERM,
+     R   AMU0,
+     *       RDAYL
+      COMMON/COM11/
+     R   CLC,
+     *       TI,
+     *       DP,
+     *       AADS,
+     *       AEQ1,
+     *       AEQ2,
+     *       AEQ3,
+     *       AEQ4,
+     *       AEQ5,
+     *       SSW
+      COMMON/COM12/
+     *       WV,
+     *       QOF,
+     *       QCF,
+     *       CLWA,
+     *       APRE,
+     *       SMU0,
+     *       ALTE,
+     *       ALSO
+      COMMON/COM13/
+     R   ZDPO,
+     *       ZQCFO,
+     *       ZAEQSO,
+     *       ZQOFO,
+     *       ZDPN,
+     *       ZQCFN,
+     *       ZAEQSN,
+     *       ZQOFN
+      COMMON/COM14/
+     R   FLT,
+     *       FLS,
+     R   DIAG,
+     *       DIA1,
+     *       ZDIAG,
+     *       ZDIA1,
+     *       ZDIA,
+     *       ZDIAF,
+     *       ZDIAT,
+     R PGG
+      COMMON/COM15/
+     #     PREF,
+     #     PRE1,
+     #     PRE2,
+     #     PRMUZ,
+     #     PTO1,
+     #     PTR1,
+     #     PTR2,
+     #     PW,
+     R     PALBSN
+      COMMON/COM16/
+     R ZABSCU,
+     S     ZABSLY,
+     S     ZADJD ,
+     S     ZADJU ,
+     S     ZBGND ,
+     S     ZBINT ,
+     S     ZBSUR ,
+     S     ZBSUIN,
+     S     ZBTOP ,
+     S     PCLDLW,
+     S     ZCLOUD,
+     S     ZCNTRB,
+     S     ZCUMP ,
+     S     ZCUMPT,
+     S     ZDBDT
+      COMMON/COM17/
+     S     ZDBSL ,
+     S     ZDISTD,
+     S     ZDISTU,
+     S     ZDNF  ,
+     S     PDT0  ,
+     S     ZDUC
+      COMMON/COM18/
+     S     ZEFFT ,
+     S     ZEMU  ,
+     S     ZEPHIO,
+     S     ZEPSC2,
+     S     ZEPSC3,
+     S     ZEPSH1,
+     S     ZEPSH2,
+     S     ZEPSH3
+      COMMON/COM19/
+     S     ZEPSH4,
+     S     ZEPSH5,
+     S     ZEPSH6,
+     S     ZEPSIO,
+     S     ZFACTC,
+     S     ZZFD  ,
+     S     ZFDD  ,
+     S     ZFDN
+      COMMON/COM20/
+     S     PFLUX , PFLUC, 
+     S     ZFLWP , PCTS
+     S     ZZFU  ,
+     S     ZFUP  ,
+     S     ZGLAYD,
+     S     ZGLAYU,
+     S     ZOMEGA,
+     S     ITX   ,
+     S     IXDIA ,
+     S     IXT   ,
+     S     IXTSU ,
+     S     IXTTP ,
+     S     IMX   ,
+     S     IMXP
+      COMMON/COM21/
+     R ZOZ   ,
+     S     PPMB  ,
+     S     ZRES  , PB
+     S     ZSSIG ,
+     S     PTAU  ,
+     S     PTAVE ,
+     S     ZTAVIC,
+     S     ZTI1  ,
+     S     PTL
+      COMMON/COM22/
+     S     ZTT   ,
+     S     ZTT1  ,
+     S     ZTT2  ,
+     S     ZUAER ,
+     S     ZUPF  ,
+     S     ZUU   ,
+     S     ZXD
+      COMMON/COM23/
+     S     ZXN   ,
+     S     ZXOZ  ,
+     S     ZXWV  ,
+     S     ZZZ   ,
+     S     ZRES2 ,
+     S     ZTI2  ,
+     S     ZBLAY ,
+     S     ZBLEV ,
+     S     ZCTS  ,
+     S     ZHFG
+      COMMON/COM24/
+     I KT,
+     R    PUU   ,
+     S        PTT   ,
+     S        ZZ
+     R  PCLFR  ,
+     S      PT     ,
+     S      PQOF   ,
+     S      PQLWP  ,
+     S      PEMIS  ,
+     S      PFLT
+      COMMON/COM25/
+     R  ZALBSU,
+     S      ZCG   ,
+     S      ZCLDLW,
+     S      ZCLDSW,
+     S      ZCOOLR,
+     S      ZDT0  ,
+     S      ZEMD  ,
+     S      ZFLUX ,
+     S      ZPMB  ,
+     S      ZTAU  ,
+     S      ZTAVE ,
+     S      ZTL   ,
+     S      ZFSDWN
+      COMMON/COM26/
+     S      ZFSUP ,
+     S      ZHEATR,
+     R   PDP   ,
+     S       PWV   ,
+     S       PFLS  ,
+     S       PPSOL ,
+     S       PRMU0 ,
+     S       PAER  ,
+     S       PALBS ,
+     S       PCG   ,
+     S       PCLDSW,
+     S       POMEGA,
+     S       POZ
+      COMMON/COM27/
+     R   PFDOWN,
+     S       PFUP  ,
+     R   ZAKI  ,
+     S       ZCGAZ ,
+     S       ZCNEB ,
+     S       ZC1I  ,
+     S       ZDSC  ,
+     S       ZDSH
+      COMMON/COM28/
+     S       ZDSIG ,
+     S       ZFACT ,
+     S       ZFACT1 ,
+     S       ZFACT2 ,
+     S       ZFACT3 ,
+     S       ZFACT4 ,
+     S       ZFACT5 ,
+     S       ZFACT6 ,
+     S       ZFD   ,
+     S       ZFRAC ,
+     S       ZFU   ,
+     S       ZG    ,
+     S       ZGG   ,
+     S       ZPIZAZ
+      COMMON/COM29/
+     S       ZRAYL ,
+     S       ZRAY1 ,
+     S       ZRAY2 ,
+     S       ZREF  ,
+     S       ZREFZ ,
+     S       ZRE1  ,
+     S       ZRE2  ,
+     S       ZRJ   ,
+     S       ZRK   ,
+     S       ZRL   ,
+     S       ZRMU  ,
+     S       ZRMUE ,
+     S       ZRMUZ
+      COMMON/COM30/
+     S       ZRNEB ,
+     S       ZRUEF ,
+     S       ZR1   ,
+     S       ZR2   ,
+     S       ZR21  ,
+     S       ZR22  ,
+     S       ZR23  ,
+     S       ZS    ,
+     S       ZSEC  ,
+     S       ZSS1  ,
+     S       ZTAUAZ
+      COMMON/COM31/
+     S       ZTOT  ,
+     S       ZTO1  ,
+     S       ZTR   ,
+     S       ZTRA1 ,
+     S       ZTRA2 ,
+     S       ZTR1
+      COMMON/COM32/
+     S       ZTR2  ,
+     S       ZUD   ,
+     S       ZUM   ,
+     S       ZU1D  ,
+     S       ZU2D  ,
+     S       ZW    ,
+     S       ZN175 ,
+     S       ZN190 ,
+     S       ZO175 ,
+     S       ZO190 ,
+     S       ZP75  ,
+     S       ZP90  ,
+     S       ZSIGN ,
+     S       ZSIGO
+      COMMON/COM33/
+     R   PTR,
+     S       PU,
+     R   ZRH,
+     *       ZCH,
+     *       ZCM,
+     *       ZCL,
+     *       ZCT,
+     *       ZCC,
+     I NTOPCM
+      COMMON/COM34/
+     *        NBASECM,
+     R   ARPRCM,
+     I ITOPH,
+     *        ITOPM,
+     *        ITOPL,
+     L LOC,
+     R   ZQS,
+     *       ZCLC,
+     *       ZQLWP
+      COMMON/COM35/
+     R   VERVEL,
+     *       ZTHETA,
+     *       ZETA,
+     *       ZDTHMIN,
+     I INVB,
+     R   ZCTLWP,
+     *       ZQLOC,
+     *       ZQMEC,
+     *       ZQHIC,
+     R   ZFSOT,
+     #       ZFTET,
+     #       ZFLT
+      COMMON/COM36/
+     #       ZFSO ,
+     #       ZFTE ,
+     #       ZFLB ,
+     #       ZDTDT,
+     #       HEATO,
+     #       HEATE,
+     #       HEATR,
+     #       ZI0
+C
+      INTEGER
+C     I NRADFR,   NRPART,   NRINT,    NRLSTI,  NRADPFR,  NRADPLA,
+     I NRLST,    NRLEV,    NRLEVP1, NLEV, NLP2, NLEVP1,
+     I NLON, IRLEV, NTRA, NLAT, ITIM, NUA, NINT, NRPARTI
+C
+C   NRLEV .... number of vertical levels
+C   NRLST .... number of points on a latitude line
+C   NUA   .... number of absorber amount
+C   NINT  .... number of spectral intervals
+C   NTRA  .... number of transmission functions
+C   NLAT  .... number of latitude points
+C   ITIM  .... number of month under consideration
+C
+C      PARAMETER (NRLEV=122,NUA=34,NINT=6,NTRA=34, NLAT=1,
+      PARAMETER (NRLEV=23,NUA=34,NINT=6,NTRA=34, NLAT=1,
+cccm      PARAMETER (NRLEV=37,NUA=18,NINT=6,NTRA=19, NLAT=1,
+cccm     #           NRLEVP1=NRLEV+1,NRLST=1,ITIM=10,NLEV=NRLEV,
+     #           NRLEVP1=NRLEV+1,NRLST=1,ITIM=7,NLEV=NRLEV,
+     #           NLP2=NRLST, NLEVP1=NRLEVP1, NLON=NRLST,
+     #           NRPARTI=1)
+C
+      REAL YCLOCK, XLAT(NLAT), Z0, DZ, ALBMPAR, SNPAR,
+     #     TSUPAR, CTFREEZ, DELTAC, DELTAO, DELTAH
+C
+C   YTIME  .... time of the year in radians
+C   YCLOCK .... time of the day in radians
+C   XLAT   .... latitudes in radians
+C   Z0     .... zero point of height grid
+C   DZ     .... Interval between height levels
+C   ALBMPAR.... sw surface albedo as function of longitude:
+C           yearly averaged sea-ice: 0.55
+C                           water  : 0.07
+C                           land   : 0.07.lt.ALBM.lt.0.80
+C                                    depending on snow
+C   SNPAR  .... snow depth in meter
+C   TSUPAR .... surface temperature (Kelvin)
+C   CTFREEZ.... freezing temperature of sea-water (Kelvin)
+C   DELTAC .... Doppler parameter for line shapes of CO2
+C   DELTAO .... Doppler parameter for line shapes of O3
+C
+      PARAMETER (Z0=0., CTFREEZ=271.26,
+C     PARAMETER (YCLOCK=3.14159, Z0=0., TSUPAR=293.5, CTFREEZ=271.26,
+     #           DZ=0.289, ALBMPAR=0.2, SNPAR=0.,
+cccm  PARAMETER (YCLOCK=3.14159, Z0=0., TSUPAR=293.5, CTFREEZ=271.26,
+cccm     #           DZ=0.15, ALBMPAR=0.3, SNPAR=0.,
+CZ     #           DELTAC=0., DELTAO=0.)
+     #           DELTAC=6.0E-04, DELTAO=1.E-02, DELTAH=5.0E-04)
+C      PARAMETER (YCLOCK=0., Z0=0., TSUPAR=273., CTFREEZ=271.26,
+C     #           DZ=0.46875, ALBMPAR=0.07, SNPAR=0.)
+C      PARAMETER (YCLOCK=0., Z0=2.608, TSUPAR=273., CTFREEZ=271.26,
+C     #           DZ=0.2878, ALBMPAR=0.07, SNPAR=0.)
+C
+      LOGICAL LDIUR, LOLPAR
+C
+C   LDIUR .... true: sun at time, false: diurnally averaged
+C   LOLPAR.... true: land surface, false: else
+C
+C      PARAMETER (LDIUR=.TRUE., LOLPAR=.TRUE.)
+       PARAMETER (LOLPAR=.TRUE.)
+C
+      INTEGER  C2TEMP
+      CHARACTER*64  MIDTMP
+cccm      PARAMETER (C2TEMP=10,
+cccm     #    MIDTMP='/home/atm/ugamp/midrad/radfildat.dir/MIDTMP.DAT')
+ccc1      PARAMETER (C2TEMP=10, MIDTMP='tprfil2.dat')
+C
+      INTEGER  IRLONI, IRLST, IRLVP1, JPNLEV, JPNLVP1
+C
+      PARAMETER (IRLONI=NRLST, IRLST=NRLST,
+     #           IRLVP1=NRLEVP1, JPNLEV=NRLEV,
+     #           JPNLVP1=NRLEVP1, IRLEV=NRLEV)
+C
+      INTEGER NIPD, NIPD2, NTR, NG1, NG1P1
+      PARAMETER(NIPD=8,NIPD2=16,NTR=11,NG1=2,NG1P1=3)
+C
+C    definition of the functions
+C
+      REAL       CVMGT, SIGMA2
+      INTEGER    CVMGI
+C
+C    definitons of the subroutine cloud
+C
+      REAL RDCPD, CCCC, CFCT, CRHH, CRHM, CRHL, CCLWMR
+C
+C    missing definitions in morcrette
+C
+C      REAL   PSIG, PSCT, PCCO2, PCARDI, PTIM1, PTIM2, PTIM3
+      REAL ZCCO2
+ 
+      LOGICAL LOH, LOM, LOL, LORAD
+C
+      INTEGER ISHIFT, JK, JKK, JL, JMM, IMM, IMNC, IMNS, JNN,
+     #        IZQS, IZCLC, IZQLWP, JLOOP, KRLEV,
+     #        NLEV2, NSTEP, NSTART, NLEVM1, NLEV2P1, JB, IBC,
+     #        ITH, ITM, ITL,
+     #        IMAXC, JK1, KRLEV2, JK2, IMX1, IMX2, JKJ, JKJR,
+     #        JKJP, IG1, JK3, IXTX, MXIXT, JKIP1,
+     #        JKI, JKP1, JKL, JKJPN, JI, JJ, JAE3, JJPN, IAE,
+     #        JAE1, JAE2, JC, JCP1, JNU, JA, IND1, IND2, IND3
+      INTEGER IND4, KM12, KXD, KXU, IG, KBS, KDD,
+     #        NUAER, KMU, KN, KD1, NTRAER, KJP1, KD2, KM1,
+     #        KJ, KU1, JLK, KU2, KTOPM, IMP, NOUT, IMXP1, IMXM1,
+     #        JKC, JCLOUD, JKCP1, JKM1, JKJ1, JKJ2, JK2M1, JKIJ,
+     #        JG, IABS, IAER, JKLP1, JAE, INU, JAJ, IWHERE, JABS,
+     #        JN, KREF, JAJP, JKKI, JN2J, JKKP4, JMN
+C
+C       ----------------------------------------------------------------
+C
+C*    COMMON *COMRAD1* SPECTRAL DISTRIBUTION OF AEROSOLS AND OZONE.
+C                     (TRIANGULAR *T10* TRUNCATIONFOR AEROSOLS).
+C                     (TRIANGULAR *T5* TRUNCATIONFOR OZONE).
+C
+C       ----------------------------------------------------------------
+C
+      REAL
+     R           COZQC(21),COZQS(15),COZHC(21),COZHS(15)
+C
+C
+C       ----------------------------------------------------------------
+C
+C*    COMMON *COMRAD2* CONSTANTS INTERNAL TO THE RADIATION SUBROUTINES.
+C
+C       ----------------------------------------------------------------
+C
+      REAL
+     R CSUPSAT
+C
+C       ----------------------------------------------------------------
+C
+C*    COMMON *COMCON* BASIC UNIVERSAL CONSTANTS AND DERIVED CONSTANTS.
+C
+C       ----------------------------------------------------------------
+C
+      REAL
+     R API,      A,        OMEGA,    G,
+     R CPD,      CPV,      RD,       RV,
+     R RCPD,     VTMPC1,   VTMPC2,
+     R RHOH2O,   ALV,      ALS,      ALF,      CLW,      TMELT,
+     R SOLC,     STBO,     DAYL,     YEARL,
+     R C1ES,     C2ES,     C3LES,    C3IES,    C4LES,    C4IES,
+     R C5LES,   C5IES
+C
+C
+C       ---------------------------------------------------------------
+C      PARAMETER(
+C     I JPM=106,JPN=106,JPK=106,JPGL=160,JPNLON=320,
+C     I JPT1MAX=400,          JPT2MAX=50,
+C     I JPT3MAX=300,          JPT4MAX=50,
+C     I JPHASH=2048,          JPNTRCRS=20,
+C     I JPTASKS=4,     JPLOCKS=50,    JPEVENT=4,
+C     I JPLTMT=JPTASKS,
+C     I JPNUMW=352,            JPNUMP=352,
+C     I JPTABLE=1024,
+C     I JPMAXB =60,
+C     I JPMAXPB=32,
+C     I JPG3FLD=43,         JPG3XF=99,         JPG3CMP=17,
+C     I JPMP1=JPM+1,        JPNP1=JPN+1,       JPKP1=JPK+1,
+C     I JP2MP1=JPMP1*2,     JP4MP1=JPMP1*4,
+C     I JPED=JPN/2+1,       JPOD=JPNP1/2,
+C     I IPSP0=JPM+JPN-JPK,  IPSP1=JPNP1*JPMP1, IPSP2=IPSP0*(IPSP0+1)/2,
+C     I JPSP=IPSP1-IPSP2,   JP2SP=2*JPSP,
+C     I JPHGL=JPGL/2,       JPNLP2=JPNLON+2,
+C     I                     JPNVCLV=4*JPNLVP1)
+C
+C*    *COMMON* *COMCTL* - CONTROL VARIABLES FOR MODEL HOUSEKEEPING.
+C
+C     J. K. GIBSON     E.C.M.W.F.     22/01/82.
+C     MODIFIED M.J     E.C.M.W.F.     13/12/82.
+C
+      INTEGER
+     I NM,       NN,       NK,       NGL,
+     I NTEMP2,   NMP1,     NNP1,     NKP1,     N2MP1,    N4MP1,
+     I NED,      NOD,      NSP,      N2SP,     NHGL,
+     I NSCAN,    NRESUM,
+     I NFFT,     NFFTW,
+     I NSPACE1,  NSPACE2,
+     I NCBASE,   NTBASE,   NTIMST,
+     I NWRITE,   NWPTR,
+     I NWLAG,
+     I NPP,      NPPTR,
+     I NPLAG,    NPPDATA,
+     I NFRECS,   NGRECS,   NDRECS,
+     I NSTOP,    MAXROW
+      LOGICAL
+     L LHIGCM,   LSCYCL,   LHFCLR,   LHFSAV,
+     L LEND,     LDIFF1,   LINITER,  LDIFFRQ,  LWUNIN,   LWINIT,
+     L LDEBUG,   LSVPCTL,  LSSDFF,   LSSDGF,   LSSDIF,   LRESETP,
+     L LINTPP,   L2BUF,    LOWTIME,  LOPTIME,  LTSTATS,  LOCKLTD
+      REAL
+     R DTIME,    TWODT,    EPS
+C
+C      INTEGER
+C     I NWTIME(JPNUMW),     NROW(JPTASKS),
+C     I NPTIME(JPNUMP)
+C
+C     ------------------------------------------------------------------
+C
+C*    *COMMON* *COMGAU* - QUANTITIES RELATED TO THE GAUSSIAN GRID.
+C
+      REAL
+     R SINLON(NLP2),     COSLON(NLP2)
+C
+C     ---------------------------------------------------------------
+C
+C*    *COMMON* *COMTRU* -QUANTITIES RELATED TO THE SPECTRAL TRUNCATION.
+C
+C     ---------------------------------------------------------------
+C
+C*    *COMMON* *COMSIM* - QUANTITIES NEEDED FOR THE SEMI-IMPLICIT SCHEME
+C
+C     ---------------------------------------------------------------
+C
+C*    *COMMON* *COMHDI* - COEFFICIENTS FOR HORIZONTAL DIFFUSION.
+C
+C     ---------------------------------------------------------------
+C
+C*    *COMMON* *COMFFT* - QUANTITIES NEEDED FOR THE FAST *FOURIER
+C                         TRANSFORMS.
+C
+      INTEGER
+     I NFFTD1,   NRFFTD1,  NFFTD2,   NRFFTD2,  NFFTD3,   NRFFTD3,
+     I NFFTD4,   NRFFTD4,
+     I NFFTI1,   NRFFTI1,  NFFTI2,    NRFFTI2
+C      REAL
+C     R TRIG(JPNLON)
+      INTEGER
+     I NFAX(10)
+C
+C     ---------------------------------------------------------------
+C
+C*    *COMMON* *COMSTA* - ARRAYS AND PARAMETERS FOR STATISTICS.
+C
+C     ---------------------------------------------------------------
+C
+C
+C     ------------------------------------------------------------------
+C
+C*    *COMMON* *COMDIA* - QUANTITIES RELATED TO GLOBAL PHYSICAL
+C                         DIAGNOSTICS.
+C
+C       ----------------------------------------------------------------
+C
+C*    COMMON *COMPSW* SWITCHES RELATED TO THE PARAMETERISATIONS OF
+C                     DIABATIC PROCESSES.
+C
+C       ----------------------------------------------------------------
+C
+C
+C       ----------------------------------------------------------------
+C
+C*    COMMON *COMDSW* SWITCHES RELATED TO THE DYNAMICS
+C                     AND THE GENERAL CONTROL OF THE FORECAST.
+C
+C       ----------------------------------------------------------------
+C
+C
+C       ----------------------------------------------------------------
+C
+C*    COMMON *COMPH1* CONSTANTS TO COMMUNICATE BETWEEN THE MAIN PROGRAM
+C                     AND THE RADIATION SUBROUTINES.
+C
+C       ----------------------------------------------------------------
+C
+      REAL
+     R CRAE,
+     R CDISSEM
+C
+C      REAL       COSRAD(128),        SINRAD(128)
+C
+C
+C       ----------------------------------------------------------------
+C
+C*    COMMON *COMPH2* CONSTANTS TO COMMUNICATE BETWEEN THE MAIN PROGRAM
+C                     AND THE PHYSICAL SUBROUTINES (EXCEPT RADIATION
+C                     ONES).
+C
+C       ----------------------------------------------------------------
+C
+      REAL       CCRH(JPNLEV)
+C
+C
+C ----------------------------------------------------------------------
+C
+C*  *COMMON* *COMDIZ* VARIABLES AND POINTERS FOR ZONAL MEAN DIAGNOSTICS
+C
+C ----------------------------------------------------------------------
+C
+C*  *COMMON* *COMMSK* VARIABLES AND POINTERS FOR AREA MEAN DIAGNOSTICS.
+C
+C ----------------------------------------------------------------------
+C
+C*    *COMMON* *COMSDS* - START/RESTART BLOCK.
+C
+C ----------------------------------------------------------------------
+C
+C*    *COMMON* *COMTASK* - TASK RELATED VARIABLES.
+C
+C ----------------------------------------------------------------------
+C
+C*         *COMRAD* - RADIATION POINTERS.
+C
+      LOGICAL LO,LO1,LO2,LODIA,LODIAP
+C---------------------------------------------------------------------
+C
+C*    *COMMON* *COMCTL* - CONTROL VARIABLES FOR MODEL HOUSEKEEPING.
+C
+C---------------------------------------------------------------------
+C
+C     COMMON *YOMAER* RADIATIVE CHARACTERISTICS OF THE AEROSOLS
+C
+C     -----------------------------------------------------------------
+C
+      REAL TAUA(2,5), PIZA(2,5), CGA(2,5), CAER(5,5), CAEROS
+C
+C     -----------------------------------------------------------------
+C
+C     COMMON *YOMLW*
+C
+C*    COEFFICIENTS FOR THE LONGWAVE RADIATION SUBROUTINES
+C
+C NINT  :  NUMBER OF SPECTRAL INTERVALS
+C NIPD  :  NUMBER OF BANDS DESCRIBED BY PADE APPROXIMANTS
+C NTR   :  NUMBER OF REFERENCE TEMPERATURES
+C NTRA  :  NUMBER OF TRANSMISSION FUNCTIONS
+C NUA   :  NUMBER OF ABSORBER AMOUNTS
+C NG1   :  ORDER OF THE GAUSSIAN QUADRATURE
+C
+C RT1   :  ROOTS OF THE GAUSSIAN POLYNOMIAL
+C WG1   :  WEIGHTS OF THE GAUSSIAN POLYNOMIAL
+C AT, BT:  COEFFICIENTS OF THE TEMPERATURE DEPENDENCE
+C CNTNU :  H2O CONTINUUM ABSORPTION COEFFICIENTS
+C O1H,O2H,PIALF0,OCT: OZONE LONGWAVE ABSORPTION COEFFICIENTS
+C TREF, TSTAND      : REFERENCE TEMPERATURES
+C XP    :  COEFFICIENTS OF POLYNOMIAL DEVELOPMENTS OF PLANCK FUNCTION
+C GA,GB :  PADE APPROXIMANTS OF H2O, CO2 TRANSMISSION FUNCTIONS
+C ETY,PTY :  PARAMETERS OF H2O CONTINUUM
+C TINTP :  REFERENCE TEMPERATURES OF PRE-COMPUTED TRANSMISSIVITIES
+C CE    :  EMS COEFFS OF H2O TRANSMISSION FUNCTIONS
+C
+      REAL  RT1(2),WG1(2),AT(12,3),BT(12,3),CNTNU(4),O1H
+     S ,OCT(4),TREF,XP(6,6),TSTAND,GA(11,24,3),GB(11,24,3)
+     S ,PTY(11,20),ETY(11,20),TINTP(11),TSTP,O2H,PIALF0
+C
+      REAL  TB(40,31,2),ALP(40,31,2),BET(40,31,2),
+     S ULG(40),PLG(31),AP(40,31,2),BP(40,31,2),TBO3(38,31),TO3B(38,31)
+     S,ULGO(38),AO3(38,31),BO3(38,31),O3A(38,31),O3B(38,31)
+C     -----------------------------------------------------------------
+C*COMDECK YOMRDU
+C     -----------------------------------------------------------------
+C
+C*    CONTROL VARIABLES FOR RADIATION: INTERNAL SWITCH AND INDICES
+C
+C ZEELOG:  SECURITY THRESHOLD FOR ABSORBER AMOUNT IN LAPLACE TRANSFORM
+C ZEPSC :  SECURITY THRESHOLD FOR CLOUD COVER
+C ZEPSCO:  SECURITY THRESHOLD FOR OZONE AMOUNT
+C ZEPSCQ:  SECURITY THRESHOLD FOR WATER VAPOR
+C ZEPSCT:  SECURITY THRESHOLD FOR SHORTWAVE OPTICAL THICKNESS
+C ZEPSCW:  SECURITY THRESHOLD FOR CLOUD LIQUID WATER PATH
+C
+      REAL          CDAY,CCO2,CH2O,DIFF,X10E
+     S             ,ZEELOG,ZEPSC,ZEPSCO,ZEPSCQ,ZEPSCT,ZEPSCW
+C     -----------------------------------------------------------------
+C*COMDECK YOMSW
+C     -----------------------------------------------------------------
+C
+C*    COEFFICIENTS FOR THE SHORTWAVE RADIATION SUBROUTINES
+C
+C APAD  :  PADE APPROXIMANTS NUMERATOR
+C BPAD  :  PADE APPROXIMANTS DENOMINATOR
+C D     :  TRANSMISSION LIMIT FOR INFINITE ABSORBER AMOUNT
+C CRAY  :  RAYLEIGH SCATTERING COEFFICIENTS
+C SUN   :  SOLAR FRACTION IN SPECTRAL INTERVALS
+C
+      REAL  APAD(2,3,7),BPAD(2,3,7),D(2,3),CRAY(2,6),SUN(2)
+C     -----------------------------------------------------------------
+ 
+C
+C  --------------------------------------------------------------------
+C
+      REAL   TTT(1,NLAT,NRLEV,12)
+C
+C        0.1  "RADINT POINTERS"
+C             -----------------
+C
+      REAL   TM1(NLP2,NLEV),
+     *       TSM1M(NLP2),
+     *       QM1(NLP2,NLEV),
+     *       SNM1M(NLP2),
+     *       ALBM(NLP2),
+     *       AVVELM(NLP2)
+      REAL   SLMM(NLP2),
+     *       APHM1(NLP2,NLEVP1),
+     *       APM1(NLP2,NLEV)
+C
+      LOGICAL LOLAND(NLP2)
+C
+C     VARIABLES FOR FULL GRID AND TRANSFORMS.
+C
+      REAL   ZTI(NLP2,NRLEVP1),
+     *       ZCTI(NLP2,NRLEVP1),
+     *       ZCPH(NLP2,NRLEVP1),
+     *       ZWV(NLP2,NRLEV),
+     *       ZSW(NLP2,NRLEV),
+     *       ZALTE(NLP2),
+     *       ZCALTE(NLP2),
+     *       ZALSO(NLP2),
+     *       ZCALSO(NLP2)
+C
+      REAL   ZOZQ(NLP2),
+     #       ZOZH(NLP2)
+C
+      REAL   ZTRSOL(NLP2,NLEVP1),
+     *       ZEMTER(NLP2,NLEVP1)
+C
+C     FINAL RESULTS ARE STORED ON:
+C
+      REAL   TRSOLM(NLP2,NLEVP1),
+     *       EMTERM(NLP2,NLEVP1)
+C
+      REAL   AMU0(NLP2),
+     *       RDAYL(NLP2)
+C
+C     VARIABLES WITHIN THE SPLITTED LATITUDE LOOP.
+C
+      REAL   CLC(NRLST,NRLEV),
+     *       TI(NRLST,NRLEVP1),
+     *       DP(NRLST,NRLEV),
+     *       AADS(NRLST,NRLEV),
+     *       AEQ1(NRLST,NRLEV),
+     *       AEQ2(NRLST,NRLEV),
+     *       AEQ3(NRLST,NRLEV),
+     *       AEQ4(NRLST,NRLEV),
+     *       AEQ5(NRLST,NRLEV),
+     *       SSW(NRLST,NRLEV),
+     *       WV(NRLST,NRLEV),
+     *       QOF(NRLST,NRLEV),
+     *       QCF(NRLST,NRLEV),
+     *       CLWA(NRLST,NRLEV),
+     *       APRE(NRLST),
+     *       SMU0(NRLST),
+     *       ALTE(NRLST),
+     *       ALSO(NRLST)
+      REAL   ZDPO(NRLST),
+     *       ZQCFO(NRLST),
+     *       ZAEQSO(NRLST),
+     *       ZQOFO(NRLST),
+     *       ZDPN(NRLST),
+     *       ZQCFN(NRLST),
+     *       ZAEQSN(NRLST),
+     *       ZQOFN(NRLST)
+      REAL   FLT(NRLST,NRLEVP1),
+     *       FLS(NRLST,NRLEVP1)
+C
+C     DIAGNOSTIC VARIABLES.
+C
+      REAL   DIAG(NLEVP1,4),
+     *       DIA1(7),
+     *       ZDIAG(NLEVP1,10),
+     *       ZDIA1(21),
+     *       ZDIA(NLON),
+     *       ZDIAF(NLON,7),
+     *       ZDIAT(NLEVP1)
+C
+C
+C
+      REAL PGG(IRLST),
+     #     PREF(IRLST),
+     #     PRE1(IRLST),
+     #     PRE2(IRLST),
+     #     PRMUZ(IRLST),
+     #     PTO1(IRLST),
+     #     PTR1(IRLST),
+     #     PTR2(IRLST),
+     #     PW(IRLST)
+C
+C
+C  what about the 1-dimensional PALBS???
+C
+      REAL     PALBSN  (IRLST)
+C
+C*       0.2   "LOCAL" ARRAYS
+C              --------------
+      REAL ZABSCU(IRLST ,NUA, 3*NRLEV+1),
+     S     ZABSLY(IRLST ,NUA, 3*NRLEV+1) ,
+     S     ZADJD (IRLST , IRLVP1)      ,
+     S     ZADJU (IRLST , IRLVP1)       ,
+     S     ZBGND (IRLST)                ,
+     S     ZBINT (IRLST , IRLVP1)       ,
+     S     ZBSUR (IRLST , NINT)         ,
+     S     ZBSUIN(IRLST)                ,
+     S     ZBTOP (IRLST , NINT)         ,
+     S     PCLDLW(IRLST , IRLEV)        ,
+     S     ZCLOUD(IRLST)                ,
+     S     ZCNTRB(IRLST , IRLVP1,IRLVP1),
+     S     ZCUMP (IRLST)                ,
+     S     ZCUMPT(IRLST)                ,
+     S     ZDBDT (IRLST , NINT , IRLEV) ,
+     S     ZDBSL (IRLST , NINT , 2*NRLEV),
+     S     ZDISTD(IRLST , IRLVP1)       ,
+     S     ZDISTU(IRLST , IRLVP1)
+      REAL
+     S     ZDNF  (IRLST , IRLVP1,IRLVP1),
+     S     PDT0  (IRLST)
+      REAL
+     S     ZDUC  (IRLST , 3*NRLEV+1)       ,
+     S     ZEFFT (IRLST)                ,
+     S     ZEMD  (IRLST , IRLEV), ZEMU  (IRLST , IRLEV),
+     S     ZEPSC2(IRLST),  ZEPSC3(IRLST),
+     S     ZEPSH1(IRLST),  ZEPSH2(IRLST),
+     S     ZEPSH3(IRLST),  ZEPSH4(IRLST),
+     S     ZEPSH5(IRLST),  ZEPSH6(IRLST),
+     S     ZEPHIO(IRLST),  ZFACTC(IRLST),
+     S     ZZFD(IRLST), ZFDD(IRLST), ZFDN(IRLST , IRLVP1)       
+      REAL
+     S     PFLUX (IRLST , 2 , IRLVP1)   ,
+     S     PFLUC (IRLST , 2 , IRLVP1)   ,
+     S     ZFLWP (IRLST)                ,
+     S     PCTS  (IRLST , IRLEV)        ,
+     S     ZZFU   (IRLST)               ,
+     S     ZFUP  (IRLST , IRLVP1)       ,
+     S     ZGLAYD(IRLST)                ,
+     S     ZGLAYU(IRLST)                ,
+     S     ZOMEGA(IRLST , 2 , IRLEV)
+C
+      INTEGER
+     S     ITX   (IRLST)                ,
+     S     IXDIA (IRLST , IRLVP1)       ,
+     S     IXT   (IRLST , IRLVP1,IRLVP1),
+     S     IXTSU (IRLST , IRLVP1)       ,
+     S     IXTTP (IRLST , IRLVP1)       ,
+     S     IMX   (IRLST)                ,
+     S     IMXP  (IRLST)
+C
+      REAL ZOZ   (IRLST , IRLEV)        ,
+     S     PPMB  (IRLST , IRLVP1)       ,
+     S     ZRES  (IRLST)                ,
+     S     PB    (IRLST, 6 , IRLVP1)    ,
+     S     ZSSIG (IRLST , 3*NRLEV+1)    ,
+     S     PTAU  (IRLST , 2 , IRLEV)    ,
+     S     PTAVE (IRLST , IRLEV)        ,
+     S     ZTAVIC(IRLST)                ,
+     S     ZTI1  (IRLST)                ,
+     S     PTL   (IRLST , IRLVP1)       ,
+     S     ZTT   (IRLST , NTRA)         ,
+     S     ZTT1  (IRLST , NTRA)         ,
+     S     ZTT2  (IRLST , NTRA)         ,
+     S     ZUAER (IRLST , NINT)         ,
+     S     ZUPF  (IRLST , IRLVP1,IRLVP1),
+     S     ZUU   (IRLST , NUA)          ,
+     S     ZXD   (IRLST)
+      REAL
+     S     ZXN   (IRLST)                ,
+     S     ZXOZ  (IRLST)                ,
+     S     ZXWV  (IRLST)                ,
+     S     ZZZ   (IRLST)                ,
+     S     ZRES2 (IRLST)                ,
+     S     ZTI2  (IRLST)                ,
+     S     ZBLAY (IRLST,IRLEV)          ,
+     S     ZBLEV (IRLST,IRLVP1)         ,
+     S     ZCTS  (IRLST)                ,
+     S     ZHFG  (IRLST)
+C
+C     ------------------------------------------------------------------
+C
+C
+      INTEGER KT    (IRLST)
+      REAL    PUU   (IRLST , NUA  )     ,
+     S        PTT   (IRLST , NTRA )     ,
+     S        ZZ    (IRLST)
+C
+C     -------------------------------------------------------- ---------
+C
+      REAL  PCLFR  (IRLST , IRLEV)       ,
+     S      PT     (IRLST , IRLVP1)       ,
+     S      PQOF   (IRLST , IRLEV)          ,
+     S      PQLWP  (IRLST , IRLEV)          ,
+     S      PEMIS  (IRLST)
+      REAL
+     S      PFLT   (IRLST , IRLVP1)
+C
+      REAL  ZALBSU(IRLST , 2 )           ,
+     S      ZCG   (IRLST , 2 , IRLEV)    ,
+     S      ZCLDLW(IRLST , IRLEV)        ,
+     S      ZCLDSW(IRLST , IRLEV)        ,
+     S      ZCOOLR(IRLST , IRLEV)        ,
+     S      ZDT0  (IRLST)                ,
+     S      ZFLUX (IRLST , 2 , IRLVP1)   ,
+     S      ZPMB  (IRLST , IRLVP1)       ,
+     S      ZTAU  (IRLST , 2 , IRLEV)    ,
+     S      ZTAVE (IRLST , IRLEV)        ,
+     S      ZTL   (IRLST , IRLVP1)       ,
+     S      ZFSDWN(IRLST , IRLVP1)       ,
+     S      ZFSUP (IRLST , IRLVP1)       ,
+     S      ZHEATR(IRLST , IRLEV )
+C
+C     -----------------------------------------------------------------
+C
+C
+      REAL   PDP   (IRLST , IRLEV)     ,
+     S       PWV   (IRLST , IRLEV)     ,
+     S       PFLS  (IRLST , IRLVP1)    ,
+     S       PPSOL (IRLST        )     ,
+     S       PRMU0 (IRLST        )     ,
+     S       PAER  (IRLST,IRLEV,5)     ,
+     S       PALBS (IRLST , 2 )        ,
+     S       PCG   (IRLST , 2 , IRLEV) ,
+     S       PCLDSW(IRLST , IRLEV)     ,
+     S       POMEGA(IRLST , 2 , IRLEV) ,
+     S       POZ   (IRLST , IRLEV)
+C
+      REAL   PFDOWN(IRLST , IRLVP1)    ,
+     S       PFUP  (IRLST , IRLVP1)
+C
+      REAL   ZAKI  (IRLST , 2 )        ,
+     S       ZCGAZ (IRLST , IRLEV)     ,
+     S       ZCNEB (IRLST , IRLEV)     ,
+     S       ZC1I  (IRLST , IRLVP1)    ,
+     S       ZDSC  (IRLST , IRLEV)     ,
+     S       ZDSH  (IRLST , IRLEV)     ,
+     S       ZDSIG (IRLST , IRLEV)     ,
+     S       ZFACT (IRLST)             ,
+     S       ZFACT1 (IRLST), ZFACT2 (IRLST),
+     S       ZFACT3 (IRLST), ZFACT4 (IRLST),
+     S       ZFACT5 (IRLST), ZFACT6 (IRLST),
+     S       ZFD   (IRLST , IRLVP1)    ,
+     S       ZFRAC (IRLST)             ,
+     S       ZFU   (IRLST , IRLVP1)    ,
+     S       ZG    (IRLST)             ,
+     S       ZGG   (IRLST)             ,
+     S       ZPIZAZ(IRLST , IRLEV)     ,
+     S       ZRAYL (IRLST),  ZRAY1 (IRLST , IRLVP1)
+      REAL
+     S       ZRAY2 (IRLST , IRLVP1)    ,
+     S       ZREF  (IRLST)             ,
+     S       ZREFZ (IRLST , 2 , IRLVP1),
+     S       ZRE1  (IRLST)             ,
+     S       ZRE2  (IRLST)             ,
+     S       ZRJ   (IRLST , 6 , IRLVP1),
+     S       ZRK   (IRLST , 6 , IRLVP1),
+     S       ZRL   (IRLST , 8)         ,
+     S       ZRMU  (IRLST)             ,
+     S       ZRMUE (IRLST , IRLVP1)    ,
+     S       ZRMUZ (IRLST)
+      REAL
+     S       ZRNEB (IRLST)             ,
+     S       ZRUEF (IRLST , 8)         ,
+     S       ZR1   (IRLST)             ,
+     S       ZR2   (IRLST)             ,
+     S       ZR21  (IRLST)             ,
+     S       ZR22  (IRLST)             ,
+     S       ZR23  (IRLST)             ,
+     S       ZS    (IRLST)             ,
+     S       ZSEC  (IRLST)             ,
+     S       ZSS1  (IRLST)             ,
+     S       ZTAUAZ(IRLST , IRLEV)     ,
+     S       ZTOT  (IRLST , IRLVP1)    ,
+     S       ZTO1  (IRLST)             ,
+     S       ZTR   (IRLST , 2 , IRLVP1),
+     S       ZTRA1 (IRLST , IRLVP1)    ,
+     S       ZTRA2 (IRLST , IRLVP1)
+      REAL
+     S       ZTR1  (IRLST)             ,
+     S       ZTR2  (IRLST)             ,
+     S       ZUD   (IRLST , 3 , IRLVP1),
+     S       ZUM   (IRLST , IRLVP1)    ,
+     S       ZU1D  (IRLST)             ,
+     S       ZU2D  (IRLST)             ,
+     S       ZW    (IRLST)             ,
+     S       ZN175 (IRLST)             ,
+     S       ZN190 (IRLST)             ,
+     S       ZO175 (IRLST)             ,
+     S       ZO190 (IRLST)             ,
+     S       ZP75  (IRLST)             ,
+     S       ZP90  (IRLST)             ,
+     S       ZSIGN (IRLST)             ,
+     S       ZSIGO (IRLST)
+C
+C-----------------------------------------------------------------------
+C
+      REAL   PTR    (IRLST)     ,
+     S       PU     (IRLST)
+C
+C-----------------------------------------------------------------------
+C
+C   CLOUD-POINTERS
+C   --------------
+C
+      REAL   ZRH(NLP2,NLEV),
+     *       ZCH(NLP2),
+     *       ZCM(NLP2),
+     *       ZCL(NLP2),
+     *       ZCT(NLP2),
+     *       ZCC(NLP2)
+      INTEGER NTOPCM(NLP2),
+     *        NBASECM(NLP2)
+      REAL   ARPRCM(NLP2)
+      INTEGER ITOPH(NLP2),
+     *        ITOPM(NLP2),
+     *        ITOPL(NLP2)
+      LOGICAL LOC(NLP2)
+      REAL   ZQS(NLP2,NLEV),
+     *       ZCLC(NLP2,NLEV),
+     *       ZQLWP(NLP2,NLEV)
+C
+      REAL   VERVEL(NLP2,NLEV),
+     *       ZTHETA(NLP2,NLEV),
+     *       ZETA(NLP2,NLEV),
+     *       ZDTHMIN(NLP2)
+      INTEGER INVB(NLP2)
+      REAL   ZCTLWP(NLP2),
+     *       ZQLOC(NLP2),
+     *       ZQMEC(NLP2),
+     *       ZQHIC(NLP2)
+C
+C  definitions of "radheat"
+C
+      REAL   ZFSOT(NLON),
+     #       ZFTET(NLON),
+     #       ZFLT (NLON),
+     #       ZFSO (NLON),
+     #       ZFTE (NLON),
+     #       ZFLB (NLON),
+     #       ZDTDT(NLON),
+     #       HEATO(NLON,NLEV),
+     #       HEATE(NLON,NLEV),
+     #       HEATR(NLON,NLEV),
+     #       ZI0  (NLON)
+C 
+C PIERS 13-8-97 
+C
+         REAL PIERSLWP
