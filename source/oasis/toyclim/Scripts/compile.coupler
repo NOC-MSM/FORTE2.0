@@ -5,7 +5,7 @@
  
 # Script to submit to compile the coupler using the CLIM communication technique
 
-FORTEDIR=/hpcdata/working/atb299/FORTE2_ATB2
+FORTEDIR=/insert/path/to/FORTE2
 HOMEOA=$FORTEDIR/source/oasis
 HOMETOY=$HOMEOA/toyclim
 DIRWORK=$HOMETOY/wkdir.basic

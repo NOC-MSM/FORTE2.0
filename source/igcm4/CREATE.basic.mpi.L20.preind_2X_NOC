@@ -6,7 +6,7 @@ set +v
 echo $SRCSTORE
 
 RUNNAME=$1.igcm4
-RPATH=/hpcdata/working/atb299/FORTE2_ATB2
+RPATH=/insert/path/to/FORTE2
 NUPDATE=yes               # Nupdate to a new code, or re-use existing one
 
 OROGRAPHY=cmip_tiling_arctic

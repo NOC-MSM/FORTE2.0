@@ -1,2 +1,0 @@
-cat igcm4_mpi_spin.f | cut -c1-72 > igcm4_mpi_spinup_nor20.f
-cat igcm4_mpi_cont.f | cut -c1-72 > igcm4_mpi_cont_nor20.f
