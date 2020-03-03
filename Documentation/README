@@ -1,0 +1,25 @@
+An up-to-date FORTE 2.0 manual does not currently exist. In the interim, users are referred to the following 
+papers and technical reports:
+
+
+A copy of the original FORTE technical report, named "fortemodel.pdf" is provided here, citable as:
+   Sinha, B., and R. Smith (2002), Development of a fast coupled general circulation model (FORTE) for climate 
+   studies, implemented using the OASIS coupler, Tech. Rep. 81, Southampton Oceanography Centre, Southampton, U. K.
+
+
+For IGCM4 users are referred to:
+   Joshi, M., Stringer, M., van der Wiel, K., O’Callaghan, A., and Fueglistaler, S.: IGCM4: a fast, 
+   parallel and flexible intermediate climate model, Geoscientific Model Development, 8, 1157–1167, 2015.
+
+A copy of the original description of the IGCM, named "rsgup3_doc1985.pdf" is provided here, citable as:
+   Blackburn, M. (1985), Program Description for trhe Multi-Level Global Spectral Model, University of Reading, 
+   Dept. of Meteorology, Atmospheric Modelling Group
+
+
+For MOMA users are referred to:
+   Webb, D. J.: An ocean model code for array processor computers, Computers and Geosciences, 22, 569–578, 1996.
+
+
+For OASIS users are referred to:
+   Terray, L., Valcke, S., and Piacentini, A.: The OASIS Coupler User Guide Version 2.3, Tech. Rep. TR/CMGC/99-37, 
+   Tech. rep., CERFACS, Toulouse, France, 1999.

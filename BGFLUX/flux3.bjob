@@ -1,0 +1,188 @@
+#!/bin/ksh
+
+#BSUB -q short
+#BSUB -J T42L20F
+#BSUB -oo T42.flux
+#BSUB -eo T42.flux
+. /etc/profile
+module load igcm/1.2 mpi/platform/intel/8.1
+
+set -xve
+#
+# BGFLUX to output NetCDF-formatted files.
+# T42, 35 levels, reads FASTOC-IGCM outputs too.
+# 
+# This version is not using the nupdate tool. To run this job, you 
+# need first to copy the files:
+#  *.f *.inc Makefile
+# from the following directory
+# /net/mash/export/mash/disk-1/sws00msb/bgflux/src
+# to a directory located in your home directory, and make sure that the
+# following user switches and directory names are correct and consistent
+# with those of the IGCM simulation.
+#
+# Warning: To compile this code, you will need to set the fortran compiler
+# by typing:
+# setup old-fortran
+# More recent compilers may work but have not been tested yet.
+#
+# The description of the Namelist variables can be found in the directory
+# /net/mash/export/mash/disk-1/sws00msb/bgflux/doc
+#
+# History:
+# Original version modified by Rene Fehlman to output NetCDF format (???).
+# Several corrections and debuging by Michel Bourqui (2003).
+#
+############################### USER SWITCHES ############################
+#
+COMPILE=no              # (yes or no) Don't forget to recompile when any
+                        # of NL or NTRA parameters have changed.
+RUN=yes                 # (yes or no)
+#
+EXPID=rotation             # Experiment name
+#
+NL=20                   # Number of levels
+                        # Warning: If you change the number of levels, you
+                        # also need to change the levels saved in the
+                        # variable SIGMAH below. These levels may be
+                        # found in the file fort.2.
+NTRA=1                  # Number of tracers
+                        # There is always at least 1 tracer (water vapour).
+                        # !! Check that the corresponding file 
+                        # param1T21L${NL}TRAC${NTRA}.inc exists in your
+                        # source dir. Otherwise you will have to make it by
+                        # taking example on existing ones.
+#
+#HOME=/home/sws00msb
+#HOME=/export/mash/disk-1/sws00msb/igcm/examples  # Home for the experiment.
+                                                 # Must be the same as in the
+                                                 # IGCM deck.
+#
+EXPDIR=/gpfs/cru/jeu11bxu/esscratch/igcm/pigcm3.1/pT42L20/$EXPID
+                           # Where data (history) is to be found
+FLUXPUT=/local/jeu11bxu/flux
+FLUXEND=/gpfs/cru/jeu11bxu/esscratch/igcm/pigcm3.1/pT42L20/flux
+                                 # Where output is put
+#
+PARAM1=param1.inc     # File containing all parameters
+#
+#SRCDIR=$HOME/bgflux/src                   # Where the source code is to
+SRCDIR=/gpfs/cru/jeu11bxu/esscratch/igcm/pigcm3.1/pT42L20/fluxsrc
+                                          # be found.
+#
+#########################################################################
+# DATA FILES
+OROGALDIR=/gpfs/cru/jeu11bxu/esscratch/igcm/igcm3.1/data/OROG/
+                    #           where orog data is to be found
+#
+##########################################################################
+#
+EXEC=$FLUXPUT/bgfluxshortjob     # MUST be in $FLUXPUT/
+#
+############################################# UPDATE DIRECTIVES.
+# LPHPL clouds LPHPL=5*.f.,.t.,4*.f.,2*.t.,5*.f.,4*.t.,
+#
+[ ! -d $FLUXPUT ]   &&   mkdir -p $FLUXPUT
+#
+cd $FLUXPUT      # working directory
+#
+############################################# NAMELIST DATA.
+#
+CURDIR=`pwd`
+#
+cat  <<  /EOF  >  data
+$CURDIR
+$HOME
+$CURDIR
+ &INPB LSSD=.TRUE.,RNTAPE=100.0,TSPD=72.0,KITS=0,
+ TMEAN=${NL}*250.0,
+ TDISS=0.1666667,NDEL=6,LFLUX=.FALSE.,LNETCDF=.T.,
+ BEGDAY=191.0,ENDDAY=230.0,
+ KOUNTD=72,KOUNTP=0,KOUNTF=0,KOUNTA=72,KOUNTE=0,GA=9.80665,
+ NPC1=6,NPC2=8,NPC3=6,NPC4=3,NPC5=31,NPC6=6,NPC7=6,NPC8=6,NPC9=6,
+ LPC2=.f.,LPC3=.f.,LPC5=.FALSE.,LPC6=.falsE.,
+ LPC7=.t.,LPC8=.FALSE.,LPC9=.FALSE.,
+ THSURD=1000.0,800.0,600.0,400.0,300.0,
+ NCOEFF=0,LSPO=${NL}*.FALSE.,
+ LGPO=${NL}*.FALSE.,LGFO=20*.t.,
+ LSGGR=.F.,.F.,.F.,.F.,.f,.F.,.f.,.f.,.F.,.F.,.f.,.f.,
+ LSGPL=6*.f.,.t.,3*.f.,.t.,
+ LXDGR=31*.FALSE.,
+ LXDPL=.true.,.false.,2*.true.,2*.false.,.false.,.false.,2*.false.,
+ 10*.false.,
+ 3*.false.,2*.true.,7*.false.,
+ LTHGR=4*.FALSE.,
+ LTHPL=2*.FALSE.,.TRUE.,.FALSE.,
+ LPHGR=22*.FALSE.,
+ LPHPL=22*.t.,
+ LXPGR=19*.FALSE.,
+ LXPPL=19*.TRUE.,
+ LSPPLT=.TRUE.,LENCOP=.TRUE.,LPHCOP=.FALSE.,XUEN=.04,
+ CPHASE=11.85603708,
+ LROG=.FALSE.,LROGGR=.FALSE.,LROGPL=.FALSE.,LMSK2=.FALSE.,LMSK3=.FALSE.,
+ LINTP2=.false.,LINTP3=.true.,LXTRP2=.TRUE.,LXTRP3=.TRUE.,
+ LSGEDY=.FALSE.,LSGPLZ=.FALSE.,NLPR=0,PLOUT=0.,
+ NAME='Manoj','Joshi',
+ LLEV=.TRUE.,LSTRETCH=.TRUE. &
+ &INPHYS BEGDP=0.0,LDRY=.FALSE.,LDIA=.TRUE.,
+  LBL=.TRUE.,LCR=.TRUE.,LLR=.TRUE.,LRD=.TRUE.,LVD=.TRUE. &
+ &INLEV
+ SIGMAH=0.09781,0.11468,0.13234,0.15070,0.16983,0.19004,0.21197,0.23652,
+ 0.26489,0.29843,0.33854,0.38643,0.44295,0.50835,0.58212,0.66286,
+ 0.74828,0.83524,0.92000 &
+/EOF
+#
+######################### ERROR PROCESSING FUNCTION ####################
+#
+ABORT ()
+{
+echo '!!!!!!!!!! ERROR PROCESSING !!!!!!!!!!'
+set +e
+\cp fort.6 $FLUXPUT/fresults_fail
+#\rm $FLUXPUT/fort.* $FLUXPUT/core
+#\rm IGCM.cdf
+exit 1
+}
+#
+############################################# COMPILE AND RUN PROGRAM.
+#
+cd $SRCDIR
+if [ $COMPILE = yes ] ; then
+  paradiff=`diff param1.inc $PARAM1 | wc -l`
+#  if [ ! $paradiff = 0 ] ; then
+#    echo "Parameter file has changed to:" $paradiff
+#    \rm param1.inc
+#    \cp -f $PARAM1 param1.inc
+#    make clean
+#  fi
+  make bgflux
+  \cp bgflux $EXEC
+fi
+
+cd $FLUXPUT
+if [ $RUN = yes ] ; then
+  [ ! -f $EXEC ] && \cp $SRCDIR/bgflux $EXEC
+  \rm -f fort.10
+  ln -s $EXPDIR/history.dat  fort.10   # Link model history file
+  \rm -f fort.14
+  ln -s $EXPDIR/../spinup/SurfRestart.dat fort.14  # Link model surface file
+  \rm -f fort.15
+  ln -s $OROGALDIR/t42.59 fort.15 # T31 - orography (gridded)
+  \rm -f fort.16
+  ln -s /gpfs/cru/jeu11bxu/esscratch/igcm/igcm3.1/data/OROG/t42.50 fort.16 # T31 - orography (spectral)
+  $EXEC < data                ||  ABORT EXECUTE
+  set +e                                  # Disable exit on error.
+#
+#  mv fort.6 logfile
+/bin/rm utf
+mv fort.65 utf
+mv utf $FLUXEND/
+mv IGCM* $FLUXEND/
+mv fres* $FLUXEND/
+/bin/rm fort.*
+#  \rm fort.* $EXEC TMPCDF
+#
+fi
+exit 0                   # Successful termination.
+#
+########################   END OF JOB   #########################
