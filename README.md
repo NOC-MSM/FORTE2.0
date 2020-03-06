@@ -18,3 +18,6 @@ To run:
 
 
 [![DOI](https://zenodo.org/badge/237035818.svg)](https://zenodo.org/badge/latestdoi/237035818)
+
+
+Description paper in GMD Discussion: https://doi.org/10.5194/gmd-2020-43
