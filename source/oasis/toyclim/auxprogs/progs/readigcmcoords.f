@@ -56,7 +56,7 @@ c      weights between igcm3 and moma grids
       end do
 c     ii=37
 c     jj=16
-      open(2,file="ocean.kmtc.arctic_ridge_dp_ds_mk2")
+      open(2,file="ocean.kmtc.arctic_ridge_dp_ds")
       read(2,15)string,inxo,inyo,ikmt
        do 20 j=nyo,1,-1
          read(2,16)(kmt(i,j),i=1,nxo)

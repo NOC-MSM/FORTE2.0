@@ -53,6 +53,7 @@ EXEC=L35-$RUNNAME         # Name of the executable
 cd $COMPDIR
 [ ! -d $EXPDIR/climdata ]   &&   mkdir -p $EXPDIR/climdata
 cat  <<  /EOF  >  updates
+*READ ${SRCSTORE}/T42L35-m.upd
 *READ ${SRCSTORE}/forte/T42-runoff-real_snow_ice-m.upd
 *READ ${SRCSTORE}/forte/T42-av-accumulate-tile-m.upd
 *READ ${SRCSTORE}/morcrette3_1_1_swv-m.upd
@@ -97,7 +98,6 @@ cat  <<  /EOF  >  updates
 cp updates updates_spin
 cat  <<  /EOF  >>  updates_spin
 *READ ${SRCSTORE}/chg_read_nl.upd
-*READ ${SRCSTORE}/T42L35-m.upd
 *READ ${SRCSTORE}/forte/spinup-forte-m.upd
 /EOF
 

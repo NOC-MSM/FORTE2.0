@@ -70,20 +70,21 @@ Note: if you skip steps 0-3 and find you are getting obscure errors at runtime f
 4) make
 5) In moma_source, edit the makefile by changing PVM_ROOT
 6) make clean
-7) make fast -f makefile_fkft_topmix
+7) make fast
 8) ./CREATE.basic <runname>
 
 ===IGCM4===
 1) Enter igcm4
 2) Edit and run compile.libs only if libraries (FFT etc) need to be compiled
-3) Edit CREATE.basic.mpi to change RPATH
-4) Make sure user is in mjoshi group on grace to read igcm updates
-5) ./CREATE.basic.mpi <runname>
-   (Other CREATE.basic.mpi exist there; e.g. .mjaer for aerosol runs)
+   ***NOTE: The nupdate executable in the Zenodo archive is not consistent with the source code.
+   ***      If the executable does not work it is better to use either the source or executable available here: http://www.met.reading.ac.uk/~jeff/nupdate/nupdate.html
+3) Edit CREATE.basic.mpi.* to change RPATH and compiler/compile flags as necessary
+4) ./CREATE.basic.mpi <runname>
+   (Other CREATE.basic.mpi exist; e.g. .mjaer for aerosol runs)
 
 
 ===Running model===
 1) cd to FORTE2 directory
-2) Edit batch_job and make RUNNAME and PREVIOUS_RUN consistent with <runname> 
+2) Edit batch_job[20|35] and make RUNNAME and PREVIOUS_RUN consistent with <runname> 
 3) Other setups include run length, queues, output frequencies etc
 4) Change batch script to include local directory structure and batch run commands

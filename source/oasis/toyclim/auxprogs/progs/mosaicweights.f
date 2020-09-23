@@ -501,7 +501,7 @@ c      read in the igcm land mask
       close(1)
       if(mod(itest,100).eq.0)write(6,*)itest
 c      read in the ocean land mask
-      open(1,file="ocean.kmtc.arctic_ridge_dp_ds_mk2")
+      open(1,file="ocean.kmtc.arctic_ridge_dp_ds")
       read(1,*)
       do j=nyo,1,-1
       read(1,"(1x,100i3)")(ilando(i,j),i=1,nxo)
