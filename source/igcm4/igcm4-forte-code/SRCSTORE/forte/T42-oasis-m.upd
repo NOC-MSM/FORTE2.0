@@ -50,7 +50,7 @@ c
         nexca=1
         npas=KRUN/ITSPD
         itimestep=1
-        ifirstday=day
+        ifirstday=nint(day)
         start=start+ifirstday
 
         PRINT * , 'Toyclim: the atmospheric grid is  imb  = ', imb
