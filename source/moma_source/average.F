@@ -13,9 +13,10 @@ c     this routine sets all the time averaging fields to zero
 c local:
       integer i,j,k,it
 
-      do it=1,nt
-        do j=1,jmt
-          do i=1,imt
+C$OMP PARALLEL DO PRIVATE( i , j ) , SCHEDULE(STATIC)
+      do j=1,jmt
+        do i=1,imt
+          do it=1,nt
             do k=1,km
               avt(k,i,j,it) = c0
 #ifdef tendency_write
@@ -33,11 +34,7 @@ c local:
             avsnf(i,j,it) = c0
 #endif /*flux_write*/
           enddo
-        enddo
-      enddo
 
-      do j=1,jmt
-        do i=1,imt
           do k=1,km
             avu(k,i,j) = c0
             avv(k,i,j) = c0
@@ -67,6 +64,7 @@ c local:
 #endif /*w_write*/
         enddo
       enddo
+C$OMP END PARALLEL DO
 
       avtime = c0
       end
@@ -91,24 +89,24 @@ c when calling this routine
 c local:
       integer i,j,k,it
 
-      do it=1,nt
-        do j=1,jmt
-          do i=1,imt
-            do k=1,km
-             avt(k,i,j,it) = avt(k,i,j,it) + t(k,i,j,it,np)*timeinc
-            enddo
-#ifdef flux_write
-            avstf(i,j,it) = avstf(i,j,it)+surf_t_flux(i,j,it)*timeinc
-            avsmf(i,j,it) = avsmf(i,j,it)+surf_m_flux(i,j,it)*timeinc
-            avsnf(i,j,it) = avsnf(i,j,it)+surf_n_flux(i,j,it)*timeinc
-#endif /*flux_write*/
-          enddo
-        enddo
-      enddo
+C$OMP PARALLEL DO PRIVATE( i , j ) , SCHEDULE(STATIC)
+      do j=1,jmt
+        do i=1,imt
 
-        do j=1,jmt
-          do i=1,imt
-            do k=1,km
+          do k=1,km
+
+            do it=1,nt
+              avt(k,i,j,it) = avt(k,i,j,it) + t(k,i,j,it,np)*timeinc
+#ifdef tendency_write
+              tend_adv_av(k,i,j,it) = tend_adv_av(k,i,j,it)
+     &         + tend_adv(k,i,j,it)*timeinc
+              tend_hdiff_av(k,i,j,it) = tend_hdiff_av(k,i,j,it)
+     &         + tend_hdiff(k,i,j,it)*timeinc
+              tend_vdiff_av(k,i,j,it) = tend_vdiff_av(k,i,j,it)
+     &         + tend_vdiff(k,i,j,it)*timeinc
+#endif /*tendency_write*/
+            enddo
+
             avu(k,i,j) = avu(k,i,j) + u(k,i,j,np)*timeinc
             avv(k,i,j) = avv(k,i,j) + v(k,i,j,np)*timeinc
 #ifdef nflux_write
@@ -139,6 +137,15 @@ c --- Specific kinetic energy of seawater in m^2/s^2
           avw(k,i,j) = avw(k,i,j) + w(k,i,j)*timeinc
         enddo
 #endif /*w_write*/
+
+#ifdef flux_write
+          do it=1,nt
+            avstf(i,j,it) = avstf(i,j,it)+surf_t_flux(i,j,it)*timeinc
+            avsmf(i,j,it) = avsmf(i,j,it)+surf_m_flux(i,j,it)*timeinc
+            avsnf(i,j,it) = avsnf(i,j,it)+surf_n_flux(i,j,it)*timeinc
+          enddo
+#endif /*flux_write*/
+
 #ifdef ice_write
         if(avt(1,i,j,1).le.-1.8)
         avice(i,j) = 100
@@ -149,25 +156,10 @@ c --- Specific kinetic energy of seawater in m^2/s^2
         avu0(i,j) = avu0(i,j) + u0(i,j,np0)*timeinc
         avv0(i,j) = avv0(i,j) + v0(i,j,np0)*timeinc
         avh0(i,j) = avh0(i,j) + h0(i,j,np0)*timeinc
-        enddo
-      enddo
 
-#ifdef tendency_write
-      do j=1,jmt
-        do i=1,imt
-          do k=1,km
-            do it=1,nt
-              tend_adv_av(k,i,j,it) = tend_adv_av(k,i,j,it)
-     &         + tend_adv(k,i,j,it)*timeinc
-              tend_hdiff_av(k,i,j,it) = tend_hdiff_av(k,i,j,it)
-     &         + tend_hdiff(k,i,j,it)*timeinc
-              tend_vdiff_av(k,i,j,it) = tend_vdiff_av(k,i,j,it)
-     &         + tend_vdiff(k,i,j,it)*timeinc
-            enddo
-          enddo
         enddo
       enddo
-#endif /*tendency_write*/
+C$OMP END PARALLEL DO
 
       avtime = avtime + timeinc
       end
@@ -184,9 +176,11 @@ c local:
 c     Use inverse of time and multiply since this is faster than division
       norm = c1/avtime
 
-      do it=1,nt
-        do j=1,jmt
-          do i=1,imt
+C$OMP PARALLEL DO PRIVATE( i , j ) , SCHEDULE(STATIC)
+      do j=1,jmt
+        do i=1,imt
+
+          do it=1,nt
             do k=1,km
               avt(k,i,j,it) = avt(k,i,j,it)*norm
 #ifdef tendency_write
@@ -202,11 +196,7 @@ c     Use inverse of time and multiply since this is faster than division
             avsmf(i,j,it) = avsmf(i,j,it)*norm
             avsnf(i,j,it) = avsnf(i,j,it)*norm
           enddo
-        enddo
-      enddo
 
-      do j=1,jmt
-        do i=1,imt
           do k=1,km
             avu(k,i,j) = avu(k,i,j)*norm
             avv(k,i,j) = avv(k,i,j)*norm
@@ -233,6 +223,7 @@ c     Use inverse of time and multiply since this is faster than division
           avh0(i,j) = avh0(i,j)*norm
         enddo
       enddo
+C$OMP END PARALLEL DO
 
 c This prevents normalising more than once having any effect
       avtime = c1

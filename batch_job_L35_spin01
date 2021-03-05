@@ -1,0 +1,511 @@
+#!/bin/csh -f
+# script to run FORTE with a single command
+#====================================================================
+# USER INPUTS
+# REMEMBER module load igcm/1.2 pvm/3.4.6  mpi/platform/intel/8.1
+#====================================================================
+# FORTE USER INPUT
+set RUNNAME = L35_spin01          # RUNNAME used to prepare components via the CREATE.basic scripts
+set PREVIOUS_RUN = L35_spin01     # Set same as RUNNAME if this is a new simulation. If branching from a previous run specify which run here
+set FORTE_PATH = $PWD             # Default is $PWD
+set RUNIT = yes                   # 'yes' if you want to run, 'no' to just set up the job
+set CLOBBER = yes                 # Overwrite existing runs of same name?... (Options: yes, no, prompt)
+set RETRY = no                    # Attempt re-run of increment in event of failure. (yes/no, default = no)
+                                  #  >> There is currently no limit to the number of retries - use with care
+
+#====================================================================
+# Simulations can comprise of a single long integration. However, most HPCs operate queues so
+# this script enables users to divide simulations into increments that fit into the job queue
+#====================================================================
+
+# Specify details of a run increment
+#
+set NDAYS2RUN    = 3600            # Run length (days)
+set RESTARTEVERY = 3600            # Frequency at which to write restarts (days)
+set OUTPUTEVERY  = 360             # Ocean output frequency
+set AOUTPUTEVERY = 360             # Atmosphere output frequency
+
+#====================================================================
+# The following options control job restarts and resubmission
+#====================================================================
+
+# NRUN                         NINCR
+# v                            v
+# ------------------------------  RUNNAME (==) PREVIOUS_RUN
+
+set NINCR = 50                    # Specify the number of increments to run
+set NRUN = 1                      # Starting at increment  (use 1 if starting from rest, or a value <= NINCR if restarting)
+
+
+
+#====================================================================
+# The following options enable a new simulation to branch off from a previous run
+#====================================================================
+
+#        PINCR                 NINCR
+#        v                     v
+# ------------------------------  PREVIOUS_RUN
+#         |
+#         ----------------------  RUNNAME
+#         ^
+#         NRUN
+
+set PINCR = 0                     # Specify the increment of PREVIOUS_RUN to restart from (default = 0)
+                                  # Ignored if 0, assumes NRUN = PINCR + 1
+
+#====================================================================
+# The following options enable experiments - regard as untested
+#====================================================================
+#====================================================================
+# MOMA filenames for reading flux and/or SST data
+# (only used if MOMA has been compiled with -Dcmip_flxrd and/or -Dsst_rd)
+set FNFLX = flx_test.nc
+set FNSST = sst_test.nc
+
+#====================================================================
+# END USER INPUTS
+#====================================================================
+
+while ( $NRUN <= $NINCR )
+echo Run increment = $NRUN
+
+set PRUN = `echo "$NRUN - 1" | bc`
+
+# IGCM4 settings - start from rest, or continue from restart if NRUN > 1
+set INIT = .true.
+set LRSTRT = .FALSE.
+set LMASOLD = .FALSE.
+set IGCM4_EXEC = L35-${RUNNAME}.igcm4_spin
+if ( $NRUN > 1 ) then
+  set INIT = .false.
+  set LRSTRT = .TRUE.
+  set LMASOLD = .TRUE.
+  set IGCM4_EXEC = L35-${RUNNAME}.igcm4_cont
+endif
+
+echo "PREVIOUS_RUN  =" $PREVIOUS_RUN
+echo "INIT          =" $INIT
+echo "IGCM4_EXEC    =" $IGCM4_EXEC
+
+# SET PATHS
+set ATMOS_SRC = $FORTE_PATH/source/igcm4
+set ATMOS_RUN = $FORTE_PATH/run_dirs/igcm4
+set OCEAN_SRC = $FORTE_PATH/source/moma
+set OCEAN_RUN = $FORTE_PATH/run_dirs/moma
+set OASIS_SRC = $FORTE_PATH/source/oasis
+set OASIS_RUN = $FORTE_PATH/run_dirs/oasis
+
+#====================================================================
+# PREPARE OASIS COUPLER
+echo "Preparing OASIS..."
+if ( $PREVIOUS_RUN == $RUNNAME ) then
+# Simple cases - single run or continuation
+  # Check wkdir.$RUNNAME exists and prevent model from running if not
+  if ( ! -d $OASIS_RUN/wkdir.$RUNNAME ) then
+    echo 'Directory "$OASIS_RUN/wkdir.$RUNNAME" does not exist!'
+    echo 'Job will not be submitted'
+    set RUNIT = no
+  endif
+
+  # Remove old *out and *prt files
+  \rm -f $OASIS_RUN/wkdir.$RUNNAME/*out $OASIS_RUN/wkdir.$RUNNAME/*prt
+
+  # Copy the correct sstocean and flxatmos files
+  if ( $INIT == .true. ) then
+    \cp $OCEAN_RUN/$RUNNAME.moma/sstatmos $OASIS_RUN/wkdir.$RUNNAME/sstocean
+    \cp $ATMOS_RUN/$RUNNAME.igcm4/flxocean $OASIS_RUN/wkdir.$RUNNAME/flxatmos
+  else
+    \cp $OCEAN_RUN/$RUNNAME.moma/${PREVIOUS_RUN}_r${PRUN}.sstatmos $OASIS_RUN/wkdir.$RUNNAME/sstocean
+    \cp $ATMOS_RUN/$RUNNAME.igcm4/${PREVIOUS_RUN}_r${PRUN}.flxocean $OASIS_RUN/wkdir.$RUNNAME/flxatmos
+  endif
+
+else
+# More complex cases - branching from another run
+
+# WORK IN PROGRESS
+# SIMPLEST case is to create the new RUNNAME using the CREATE.basic scripts << this should work as is >>
+
+# Check for existing run of the same name
+# if ( -e $OASIS_RUN/wkdir.$RUNNAME ) then
+#   if ( $CLOBBER == yes ) then
+#     \rm -r $OASIS_RUN/wkdir.$RUNNAME
+#     \cp -R $OASIS_RUN/wkdir.$PREVIOUS_RUN $OASIS_RUN/wkdir.$RUNNAME
+#   else if ( $CLOBBER == prompt ) then 
+#     echo 'OASIS Directory alread exists! Delete (y/n)'
+#     if ( $< == y ) then 
+#       \rm -r $OASIS_RUN/wkdir.$RUNNAME
+#       \cp -R $OASIS_RUN/wkdir.$PREVIOUS_RUN $OASIS_RUN/wkdir.$RUNNAME
+#     else
+#       echo 'Probably a wise choice! Choose another'
+#       echo 'name or move the existing directory.'
+#       exit
+#     endif
+#   else if ( $CLOBBER == no ) then
+#     echo 'OASIS Directory alread exists!'
+#     echo 'CLOBBER set to no, so job exiting...'
+#     exit
+#   endif 
+# else
+#   \cp -R $OASIS_RUN/wkdir.$PREVIOUS_RUN $OASIS_RUN/wkdir.$RUNNAME
+# endif
+
+  # Copy the correct sstocean and flxatmos files
+  if ( $INIT == .true. ) then
+    \cp $OCEAN_RUN/$PREVIOUS_RUN.moma/sstatmos $OASIS_RUN/wkdir.$RUNNAME/sstocean
+    \cp $ATMOS_RUN/$PREVIOUS_RUN.igcm4/flxocean $OASIS_RUN/wkdir.$RUNNAME/flxatmos
+  else
+    \cp $OCEAN_RUN/$PREVIOUS_RUN.moma/${PREVIOUS_RUN}_r${PINCR}.sstatmos $OASIS_RUN/wkdir.$RUNNAME/sstocean
+    \cp $ATMOS_RUN/$PREVIOUS_RUN.igcm4/${PREVIOUS_RUN}_r${PINCR}.flxocean $OASIS_RUN/wkdir.$RUNNAME/flxatmos
+  endif
+
+endif
+
+#====================================================================
+# PREPARE ATMOSPHERE MODEL
+echo "Preparing IGCM4..."
+if ( $PREVIOUS_RUN == $RUNNAME ) then
+# Simple cases - single run or continuation
+  # Check $RUNNAME.igcm4 exists and prevent model from running if not
+  if ( ! -d $ATMOS_RUN/$RUNNAME.igcm4 ) then
+    echo 'Directory "$ATMOS_RUN/$RUNNAME.igcm4" does not exist!'
+    echo 'Job will not be submitted'
+    set RUNIT = no
+  endif
+
+# Restarting run...
+  if ( $INIT == .false. ) then
+    cd $ATMOS_RUN/$RUNNAME.igcm4
+    \rm input.dat RestartSurface.dat        # Remove these to prevent copying over the links
+    \cp output.${RUNNAME}_r${PRUN}.12 input.dat
+    \cp output.${RUNNAME}_r${PRUN}.17 RestartSurface.dat
+    cd $FORTE_PATH
+  endif
+
+else 
+# More complex cases - branching from another run
+
+# WORK IN PROGRESS
+# SIMPLEST case is to create the new RUNNAME using the CREATE.basic scripts << this should work as is >>
+
+# Starting from a different run...
+# Check for existing run of the same name
+#  if ( -d $ATMOS_RUN/$RUNNAME.igcm4 ) then
+#    if ( $CLOBBER == yes ) then
+#      \rm -r $ATMOS_RUN/$RUNNAME.igcm4
+#    else if ( $CLOBBER == prompt ) then
+#      echo 'IGCM4 Directory alread exists! Delete (y/n)'
+#      if ( $< == y ) then
+#        \rm -r $ATMOS_RUN/$RUNNAME.igcm4
+#      else
+#        echo 'Probably a wise choice! Choose another'
+#        echo 'name or move the existing directory.'
+#        exit
+#      endif
+#    else if ( $CLOBBER == no ) then
+#      echo 'IGCM4 Directory alread exists!'
+#      echo 'CLOBBER set to no, so job exiting...'
+#      exit
+#    endif
+#  endif
+#
+#  \mkdir $ATMOS_RUN/$RUNNAME.igcm4
+#  cd $ATMOS_RUN/$RUNNAME.igcm4/
+#  
+#  if ( -f column.dat ) \rm -f          column.dat
+#  if ( -r climdata ) \rm -f            climdata/*.dat
+#  if ( -r orogdata ) \rm -f            orogdata
+#  \cp -RP $ATMOS_RUN/$PREVIOUS_RUN.igcm4/climdata            climdata
+#  \cp -RP $ATMOS_RUN/$PREVIOUS_RUN.igcm4/orogdata            orogdata
+#  \cp -P $ATMOS_RUN/$PREVIOUS_RUN.igcm4/input.dat            input.dat
+#  \cp -P $ATMOS_RUN/$PREVIOUS_RUN.igcm4/RestartSurface.dat   RestartSurface.dat
+#  \cp -P $ATMOS_RUN/$PREVIOUS_RUN.igcm4/vegetation.dat       vegetation.dat
+#  \cp -P $ATMOS_RUN/$PREVIOUS_RUN.igcm4/data.template        data.template
+## Might not want to copy the executable from the previous run...
+## \cp    $ATMOS_RUN/$PREVIOUS_RUN.igcm4/L35-$PREVIOUS_RUN.igcm4_cont  L35-$RUNNAME.igcm4_cont
+#  \cp    $ATMOS_RUN/$PREVIOUS_RUN.igcm4/topog_gwd.dat topog_gwd.dat
+
+  # Restarting under a different name...
+  if ( $INIT == .false. ) then
+    cd $ATMOS_RUN/$RUNNAME.igcm4
+    echo "Copying input.dat and RestartSurface.dat from ${PREVIOUS_RUN}_r${PINCR}"
+    \rm input.dat RestartSurface.dat
+    \cp -P $ATMOS_RUN/$PREVIOUS_RUN.igcm4/output.${PREVIOUS_RUN}_r${PINCR}.12 input.dat
+    \cp -P $ATMOS_RUN/$PREVIOUS_RUN.igcm4/output.${PREVIOUS_RUN}_r${PINCR}.17 RestartSurface.dat
+    cd $FORTE_PATH
+  endif
+endif
+
+#====================================================================
+# PREPARE OCEAN MODEL
+echo "Preparing MOMA ..."
+if ( $PREVIOUS_RUN == $RUNNAME ) then
+# Simple cases - single run or continuation
+  # Check $RUNNAME.igcm4 exists and prevent model from running if not
+  if ( ! -d $OCEAN_RUN/$RUNNAME.moma ) then
+    echo 'Directory "$OCEAN_RUN/$RUNNAME.moma" does not exist!'
+    echo 'Job will not be submitted'
+    set RUNIT = no
+  endif
+# Restarting run...
+  if ( $INIT == .true. ) then
+    set FNREST = "              "
+    set BEGDAY  = 000000
+  else
+    # The name of the ocean restart (FNREST) and BEGDAY are found from the moma.log file...
+    # **This is a potential source of problems - for example if the moma.log files are moved/deleted from $FORTE_PATH
+    set FNREST = `grep -B 1 "==> END of model run" $FORTE_PATH/$RUNNAME.moma.log.$PRUN | head -1 | sed 's/.*\/\(.*\)\".*/\1/' `
+    set BEGDAY  = `echo $FNREST | cut -c4-9`
+  endif
+
+
+else
+# More complex cases - branching from another run
+
+# WORK IN PROGRESS
+# SIMPLEST case is to create the new RUNNAME using the CREATE.basic scripts << this should work as is >>
+
+# Starting from a different run...
+# Check for existing run of the same name
+# if ( -e $OCEAN_RUN/$RUNNAME.moma ) then
+#   if ( $CLOBBER == yes ) then
+#     rm -r $OCEAN_RUN/$RUNNAME.moma
+#   else if ( $CLOBBER == prompt ) then
+#     echo 'MOMA Directory alread exists! Delete (y/n)'
+#     if ( $< == y ) then 
+#       rm -r $OCEAN_RUN/$RUNNAME.moma
+#     else
+#       echo 'Probably a wise choice! Choose another'
+#       echo 'name or move the existing directory.'
+#       exit
+#     endif
+#   else if ( $CLOBBER == no ) then
+#     echo 'MOMA Directory alread exists!'
+#     echo 'CLOBBER set to no, so job exiting...'
+#     exit
+#   endif
+# endif
+# 
+# mkdir $OCEAN_RUN/$RUNNAME.moma
+#  \cp $OCEAN_RUN/$PREVIOUS_RUN.moma/makefile                       $OCEAN_RUN/$RUNNAME.moma
+#  \cp $OCEAN_RUN/$PREVIOUS_RUN.moma/levisalt.dat                   $OCEAN_RUN/$RUNNAME.moma
+#  \cp $OCEAN_RUN/$PREVIOUS_RUN.moma/levitemp.dat                   $OCEAN_RUN/$RUNNAME.moma
+#  \cp $OCEAN_RUN/$PREVIOUS_RUN.moma/ocean.in.template              $OCEAN_RUN/$RUNNAME.moma
+#  \cp $OCEAN_RUN/$PREVIOUS_RUN.moma/ocean.kmtc.arctic_ridge_dp_ds  $OCEAN_RUN/$RUNNAME.moma
+#  \cp $OCEAN_RUN/$PREVIOUS_RUN.moma/moma                           $OCEAN_RUN/$RUNNAME.moma
+
+  # The name of the ocean restart (FNREST) and BEGDAY are found from the moma.log file...
+  # **This is a potential source of problems - for example if the moma.log files are moved/deleted from $FORTE_PATH
+  set FNREST = `grep -B 1 "==> END of model run" $FORTE_PATH/$PREVIOUS_RUN.moma.log.$PINCR | head -1 | sed 's/.*\/\(.*\)\".*/\1/' `
+  set BEGDAY  = `echo $FNREST | cut -c4-9`
+
+  if ( -e $OCEAN_RUN/$PREVIOUS_RUN.moma/${FNREST} ) \cp $OCEAN_RUN/$PREVIOUS_RUN.moma/${FNREST} $OCEAN_RUN/$RUNNAME.moma
+  if ( -e $OCEAN_RUN/$PREVIOUS_RUN.moma/${FNSST} ) \cp $OCEAN_RUN/$PREVIOUS_RUN.moma/${FNSST} $OCEAN_RUN/$RUNNAME.moma
+  if ( -e $OCEAN_RUN/$PREVIOUS_RUN.moma/${FNFLX} ) \cp $OCEAN_RUN/$PREVIOUS_RUN.moma/${FNFLX} $OCEAN_RUN/$RUNNAME.moma
+
+endif
+
+echo "FNREST=" $FNREST
+
+set BGDAYP1 = `echo "$BEGDAY + 1" | bc`
+set BDAYEND = `echo "$BEGDAY + $NDAYS2RUN" | bc`
+
+#====================================================================
+# CHANGE ANYTHING THAT NEEDS CHANGING IN FILES
+#====================================================================
+
+if ( -e sed.script ) rm sed.script 
+cat > sed.script << !
+/dummy_RUNNAME/s/dummy_RUNNAME/$RUNNAME/
+/dummy_PREVIOUS_RUN/s/dummy_PREVIOUS_RUN/$PREVIOUS_RUN/
+/dummy_NDAYS2RUN/s/dummy_NDAYS2RUN/$NDAYS2RUN/
+/dummy_OUTPUTEVERY/s/dummy_OUTPUTEVERY/$OUTPUTEVERY/
+/dummy_AOUTPUTEVERY/s/dummy_AOUTPUTEVERY/$AOUTPUTEVERY/
+/dummy_RESTARTEVERY/s/dummy_RESTARTEVERY/$RESTARTEVERY/
+/dummy_BEGDAY/s/dummy_BEGDAY/$BEGDAY/
+/dummy_BGDAYP1/s/dummy_BGDAYP1/$BGDAYP1/
+/dummy_BDAYEND/s/dummy_BDAYEND/$BDAYEND/
+/dummy_INIT/s/dummy_INIT/$INIT/
+/dummy_LRSTRT/s/dummy_LRSTRT/$LRSTRT/
+/dummy_LMASOLD/s/dummy_LMASOLD/$LMASOLD/
+/dummy_FNREST/s/dummy_FNREST/$FNREST/
+/dummy_FNFLX/s/dummy_FNFLX/$FNFLX/
+/dummy_FNSST/s/dummy_FNSST/$FNSST/
+1,\$w tmp
+!
+
+# Create run specific namcouple
+sed -f sed.script $OASIS_RUN/wkdir.$RUNNAME/namcouple_newtile.template >>& /dev/null
+\cp tmp $OASIS_RUN/wkdir.$RUNNAME/namcouple
+
+# Create run specific IGCM4 data
+sed -f sed.script $ATMOS_RUN/$RUNNAME.igcm4/data.template >>& /dev/null
+\cp tmp $ATMOS_RUN/$RUNNAME.igcm4/data
+
+# Create run specific ocean.in
+sed -f sed.script $OCEAN_RUN/$RUNNAME.moma/ocean.in.template >>& /dev/null
+\cp tmp $OCEAN_RUN/$RUNNAME.moma/ocean.in
+
+\rm sed.script tmp 
+
+# Create run specific IGFLUX script
+# NOT YET IMPLEMENTED
+
+#====================================================================
+# SUBMIT FORTE JOB
+#====================================================================
+cd $FORTE_PATH
+
+if ( $RUNIT == yes ) then
+echo "Running $RUNNAME"
+echo "from $PWD"
+
+#============================
+# Create runscript
+
+cat > $RUNNAME.script << !
+#!/bin/bash
+#SBATCH -N 3
+#SBATCH --job-name=FHF
+#SBATCH --partition=test
+#SBATCH --time=03:00:00
+##SBATCH --exclude=node[03]
+#echo node03 excluded
+
+module purge
+export MODULEPATH=/home/acc/MyMods:$MODULEPATH
+module use /home/acc/MyMods
+module load nemo-PrgEnv/4.0
+module list
+
+# OMP Parallel MOMA
+# In bash command is:  export OMP_NUM_THREADS=4
+# In csh  command is:  setenv OMP_NUM_THREADS 4
+  export OMP_NUM_THREADS=5
+#
+  date
+  squeue
+#
+  echo Directory is `pwd`
+#
+  # Start PVM
+  # this cleans up pvm issues such as it thinking it is running when not
+  \rm -rf /tmp/pvm*
+
+  echo "halt" | pvm
+  echo "quit" | pvm
+
+  cd $FORTE_PATH
+
+  # Start OASIS
+  echo "Starting OASIS..." > $FORTE_PATH/$RUNNAME.oasis.log.$NRUN
+  cd $OASIS_RUN/wkdir.$RUNNAME
+     ./oasis >> $FORTE_PATH/$RUNNAME.oasis.log.$NRUN &
+  cd $FORTE_PATH
+
+  # Start MOMA
+  echo "Starting MOMA..." > $FORTE_PATH/$RUNNAME.moma.log.$NRUN
+  cd $OCEAN_RUN/$RUNNAME.moma
+     ./moma >> $FORTE_PATH/$RUNNAME.moma.log.$NRUN &
+  cd $FORTE_PATH
+
+  # Start IGCM4
+  echo "Starting IGCM4..." > $FORTE_PATH/$RUNNAME.igcm4.log.$NRUN
+  cd $ATMOS_RUN/$RUNNAME.igcm4
+     time `which mpirun` -np 32 --map-by node ./$IGCM4_EXEC >> $FORTE_PATH/$RUNNAME.igcm4.log.$NRUN &
+  cd $FORTE_PATH
+
+  # OASIS, MOMA and IGCM4 all running in background, so wait for them...
+  wait %1
+  wait %2
+  wait %3
+
+  echo "halt" | pvm
+
+  date
+exit
+!
+
+#============================
+# End of Create runscript
+
+
+#============================
+# Job timing and submission
+set TIME1=`date +%s`
+
+echo "Submitting at:  " `date`
+sbatch -W $RUNNAME.script
+
+set TIME2=`date +%s`
+
+# Use expr to do the math, let's say TIME1 was the start and TIME2 was the finish
+set DIFFSEC=`expr ${TIME2} - ${TIME1}`
+
+echo Took ${DIFFSEC} seconds.
+
+# And use date to convert the seconds back to something more meaningful
+echo Took `date +%H:%M:%S -ud @${DIFFSEC}`
+
+
+else
+# If runit == no, just exit...
+  exit
+endif
+
+
+#====================================================================
+# Move/rename output data and tidy files
+#====================================================================
+# Tidy IGCM4
+cd $ATMOS_RUN/$RUNNAME.igcm4/
+
+# Clean dir
+if ( -e toyatm.prt ) \rm toyatm.prt
+
+# Move data
+if ( -e output.dat ) \mv output.dat ${RUNNAME}_r${NRUN}_d${AOUTPUTEVERY}.at.output.dat
+if ( -e history.dat ) \mv history.dat ${RUNNAME}_r${NRUN}_d${AOUTPUTEVERY}.at.history.dat
+\mv LastRestart.dat output.${RUNNAME}_r${NRUN}.12
+\mv LastSurfRestart.dat output.${RUNNAME}_r${NRUN}.17
+\cp flxocean ${RUNNAME}_r${NRUN}.flxocean
+
+
+
+# Tidy MOMA
+cd $OCEAN_RUN/$RUNNAME.moma
+
+# Clean dir
+if ( -e toyoce.prt ) \rm toyoce.prt
+if ( -e fort.81 ) \rm fort.81
+if ( -e stream_minmax.dat ) \rm stream_minmax.dat
+if ( -e stream_info.dat ) \rm stream_info.dat
+if ( -e ocean.in ) \rm ocean.in
+
+# Move data
+# CAUTION: This should be done carefully...
+if ( -e `ls -1 *avg.nc` ) \mv `ls -1 *avg.nc` ${RUNNAME}_r${NRUN}_d${OUTPUTEVERY}.oc.nc
+\cp sstatmos ${RUNNAME}_r${NRUN}.sstatmos
+
+wait
+
+#====================================================================
+# Check for unsuccessful previous run and abort/re-run as instructed
+#====================================================================
+# There is currently no limit to the number of retries - use with care
+cd $FORTE_PATH
+if ( `grep -c "END of model run" ${RUNNAME}.moma.log.${NRUN}` == 1 ) then
+else
+  if ( $RETRY == yes ) then
+    @ NRUN--
+  else
+    exit
+  endif
+endif
+
+#====================================================================
+  set PREVIOUS_RUN = $RUNNAME
+@ NRUN++
+# End of while (NINCR) loop
+end
+
+exit

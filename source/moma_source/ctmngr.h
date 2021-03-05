@@ -9,7 +9,7 @@ c     itt     = current time step number
 c     itbt    = current barotropic timestep
 c     itbtp   = current pass of free surface model timestepping scheme
 c     totsec  = accumulated time in seconds from jan 1, year 0
-c     totsec  = accumulated time in days
+c     totday  = accumulated time in days
 c     years   = accumulated time in years
 c     stamp   = date & time stamp corresponding to itt
 c

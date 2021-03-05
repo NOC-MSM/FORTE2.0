@@ -203,9 +203,10 @@ c Local:
       external dtime
       real*4 mytime
       REAL*4 utime(3)
+      REAL*8 tinc
       character*8 budget_timestamp
 
-      integer i,j,k,ioca,ibk,isp,iept,ii,jrev,loop
+      integer i,j,k,ioca,ibk,isp,iept,ii,jrev,loop,tspd
       _MOMA_REAL ocnp
       _MOMA_REAL latmin,longmin
 c
@@ -726,6 +727,13 @@ c
       call checks
 c
 c-----------------------------------------------------------------------
+c     define some constants
+c-----------------------------------------------------------------------
+      tinc = dtts/86400
+      tspd = nint(86400./dtts)
+      print*,'loop,dtts,tspd = ', loop, dtts, tspd, tinc
+c
+c-----------------------------------------------------------------------
 c     start the time step loop
 c-----------------------------------------------------------------------
 c
@@ -768,7 +776,9 @@ c     write(stdout,*) " loop = ",loop
 
 c IF coupling timestep, get atmospheric fields from Oasis
 c
-      IF (MOD(totday,1.).lt.1e-4) THEN
+c     IF (MOD(totday,1.).lt.1e-4) THEN
+c Move away from .lt.1e-4 to something more robust
+      IF (mod(loop-1,tspd).eq.0) THEN
             CALL flx(nint(totday-ifirstday)*nexco, imt-2*nhalo,
      $       jmt-2*(nhalo-1), oheatlat,oswlw, owater,osensible)
 
@@ -806,10 +816,8 @@ c
         mytime = dtime(utime)
         utime(3)=utime(1)+utime(2)+utime(3)
         if (prntsi) then
-          if(modulo(itt,32).eq.0) then
           write (stdout,9602) itt, stamp, ektot,
      &                      dtabs(1), dtabs(2)
-          endif
           if(mom_isnan(dtabs(1)) .or.
      &         mom_isnan(dtabs(2)) .or.
      &         mom_isnan(ektot)) then
@@ -958,9 +966,10 @@ c     write(92,*)nsum
 c     close(92)
 
       nsum=0
-      do m=1,nt
+C$OMP PARALLEL DO PRIVATE( i , j ) , SCHEDULE(STATIC)
       do j=1,jmt
       do i=1,imt
+      do m=1,nt
       s2dddt(i,j,m)=c0
       s2dvtf(i,j,m)=c0
       s2dw(i,j,m)=c0
@@ -982,6 +991,7 @@ c     close(92)
       end do
       end do
       end do
+C$OMP END PARALLEL DO
 
       endif
 
@@ -996,38 +1006,39 @@ c-----------------------------------------------------------------------
 c
 #ifdef oasis
 
-      DO ji = 1, imt
-          DO jj = 1, jmt
+C$OMP PARALLEL DO PRIVATE( jj , ji ) , SCHEDULE(GUIDED)
+      DO jj = 1, jmt
+          DO ji = 1, imt
 c accumulate temperatures to form an average for passing to Oasis
-          sstoc(ji,jj)=sstoc(ji,jj)+t(1,ji,jj,1,3)/(86400/dtts)
+          sstoc(ji,jj)=sstoc(ji,jj)+t(1,ji,jj,1,3)*tinc
 c accumulate surface currents to form an average for passing to Oasis 
 c                                                (convert from cm/s to m/s )
-          zscoc(ji,jj)=zscoc(ji,jj)+u(1,ji,jj,3)*.01/(86400/dtts)
-          mscoc(ji,jj)=mscoc(ji,jj)+v(1,ji,jj,3)*.01/(86400/dtts)
+          zscoc(ji,jj)=zscoc(ji,jj)+u(1,ji,jj,3)*.01*tinc
+          mscoc(ji,jj)=mscoc(ji,jj)+v(1,ji,jj,3)*.01*tinc
           ENDDO
       ENDDO
+C$OMP END PARALLEL DO
 
 c IF coupling timestep, give oceanic fields to Oasis
 c
-C      IF (mod(totday,1.).lt.1e-4.OR.(loop.eq.1)) THEN
-C Change to avoid offset in mixing leapfrong timestep in restart runs
-      IF (mod(totday,1.).lt.1e-4) THEN
+c     IF (mod(totday,1.).lt.1e-4) THEN
+c Move away from .lt.1e-4 to something more robust
+      IF (mod(loop,tspd).eq.0) THEN
 
 
 c read in sst from file and replace that which is about to be passed to OASIS
 c
 #ifdef sst_rd
       call snap_sst_rd_netcdf
-c     write(stdout,*)'sstocr1=',sstoc(90,44)
 #endif /*sst_rd*/
 
 c save out the sst which is about to be passed to OASIS
 c
 #ifdef sst_wr
-c     write(stdout,*)'sstoc1=',sstoc(90,44)
       call snap_sst_wr_netcdf
 #endif /*sst_wr*/
 
+C$OMP PARALLEL DO PRIVATE( jj , ji ) , SCHEDULE(STATIC)
       do jj=1,jmt-2*(nhalo-1)
         do ji=1,imt-2*nhalo
           osstoc(ji,jj)=sstoc(ji+nhalo,jj+nhalo-1)
@@ -1035,6 +1046,7 @@ c     write(stdout,*)'sstoc1=',sstoc(90,44)
           omscoc(ji,jj)=mscoc(ji+nhalo,jj+nhalo-1)
         end do
       end do
+C$OMP END PARALLEL DO
 
        if (loop.eq.1) then
            CALL stpcmo(0,imt-2*nhalo, jmt-2*(nhalo-1)
@@ -1048,13 +1060,15 @@ c
 c   reset daily sst array
 c
 c      write(6,*) 'clearing exchange array'
-       do ji=1,imt
+C$OMP PARALLEL DO PRIVATE( jj , ji ) , SCHEDULE(STATIC)
        do jj=1,jmt
+       do ji=1,imt
         sstoc(ji,jj)=0.
         zscoc(ji,jj)=0.
         mscoc(ji,jj)=0.
        end do
        end do
+C$OMP END PARALLEL DO
 
       END IF
 #endif
@@ -1062,25 +1076,6 @@ c      write(6,*) 'clearing exchange array'
       if (last) go to 3401
 3400  continue
 3401  continue
-c     i=90
-c     j=44
-c     m=1
-c     write(91,"(4e16.8)")s2dddt(i,j,m),s2dvtf(i,j,m),s2dw(i,j,m),
-c    1   s2dslpdif(i,j,m),stf(1)
-c     write(91,"(4e16.8)")s2dadvn(i,j,m),s2dadve(i,j,m),
-c    1   s2dadvw(i,j,m),s2dadvs(i,j,m)
-c     write(91,"(4e16.8)")s2ddifn(i,j,m),s2ddife(i,j,m),s2ddifw(i,j,m),
-c    1   s2ddifs(i,j,m)
-c     write(91,"(4e16.8)")s2dbiharmn(i,j,m),s2dbiharme(i,j,m),
-c    1   s2dbiharmw(i,j,m),s2dbiharms(i,j,m)
-c     write(91,"(4e16.8)")s2dbiharmup(i,j,m),s2ddflux(i,j,m)
-c     s2dall(i,j,m)=s2dvtf(i,j,m)+s2dw(i,j,m)+s2dslpdif(i,j,m)+
-c    1   s2dadvn(i,j,m)+s2dadve(i,j,m)+s2dadvw(i,j,m)+s2dadvs(i,j,m)+
-c    1   s2ddifn(i,j,m)+s2ddife(i,j,m)+s2ddifw(i,j,m)+s2ddifs(i,j,m)+
-c    1   s2dbiharmn(i,j,m)+s2dbiharme(i,j,m)+s2dbiharmw(i,j,m)+
-c    1   s2dbiharms(i,j,m)+
-c    1   s2dbiharmup(i,j,m)+s2ddflux(i,j,m)
-c     write(91,*)" sumall = ",s2dall(i,j,m),"nsum = ",nsum
 c
 c-----------------------------------------------------------------------
 c     documentation info at end of run

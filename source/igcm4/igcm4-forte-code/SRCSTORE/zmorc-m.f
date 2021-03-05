@@ -130,7 +130,7 @@ C define the latitude points
 C
 C Set up latitude grid
  
-      XLAT(1)=3.141579*alat/180.0
+      XLAT(1)=PI*alat/180.0
 C calculate day
 C
 C  loop over latitudes
@@ -258,7 +258,7 @@ C Setup SW code
       LDIUR=.FALSE.   !Diurnally averaged if false
 C      LDIUR=.TRUE.   !Diurnally averaged if false
 C
-       YCLOCK=3.14159      !time of day in radians
+       YCLOCK=PI      !time of day in radians
 C       YCLOCK= (DOY-FLOAT(INT(DOY))*2.*3.14159
 c       print *,doy,int(doy)
 C

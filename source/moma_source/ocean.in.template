@@ -21,7 +21,7 @@ moma File 'ocean.in'.  Input file for MOMA model.
 # acor    = (>0, 0) = (implicit, explicit) treatment of coriolis
 # archd / snapd = time between writing archives / snapshots (days)
 # dchkbd   = weighting factor for del-plus-del-cross filter (de-checkerboarding)
-# dgnstc   = time between diagnostic calculations (days)
+# dgnstc   = time between diagnostic calculations (days) 
 # eb      = Perform euler backward time step mixing (.true. or .false.)
 # fnrest  = Filename to use for restart (string)
 # ftrest,ftsnap, ftarch = File type to use for restart, snapshot & archive. 
@@ -37,10 +37,10 @@ moma File 'ocean.in'.  Input file for MOMA model.
  &contrl
      init=dummy_INIT,        fnrest='dummy_FNREST',  fnkmt='ocean.kmtc.arctic_ridge_dp_ds'
      days = dummy_NDAYS2RUN,            restrt=.true.,     
-     nmix=  64,          eb=.true.,      ncon=1,    acor = 0.6, streamd= 360.0,
-     tsi=0.015625,      snapd=dummy_OUTPUTEVERY,      archd=dummy_RESTARTEVERY, 
+     nmix=  18,          eb=.true.,      ncon=1,    acor = 0.6, streamd= 360.0,
+     tsi=1.,      snapd=dummy_OUTPUTEVERY,      archd=dummy_RESTARTEVERY, 
      ftrest = 'ncdf',     ftsnap = 'ncdf', ftarch = 'ncdf', 
-     dgnstc=1.e30,  dchkbd  = 1.0,  fnflx='dummy_FNFLX', fnsst='dummy_FNSST'
+     dgnstc=1.e30,  dchkbd  = 0.1,  fnflx='dummy_FNFLX', fnsst='dummy_FNSST'
  &end
 #
 # Mixing parameters:
@@ -60,7 +60,7 @@ moma File 'ocean.in'.  Input file for MOMA model.
 # dtuv   = time step for baroclinic velocity (in seconds)
 # dtbt   = time step for barotropic velocity (in seconds)
  &tsteps
-     dtts=2700.0,      dtuv=2700.0,    dtbt = 45.0
+     dtts=4800.0,      dtuv=4800.0,    dtbt = 60.0
  &end
 #
 # Isopycnal mixing parameters:

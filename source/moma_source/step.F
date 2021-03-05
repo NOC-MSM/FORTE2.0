@@ -156,7 +156,7 @@ c     write(91,*) " in step.F ",nsum
       endif
 #endif
 
-C$OMP PARALLEL DO PRIVATE( ic , jc ) , SCHEDULE(DYNAMIC, jmt/4)
+C$OMP PARALLEL DO PRIVATE( ic , jc ) , SCHEDULE(GUIDED)
       do jc=jcbeg,jcend
        do ic=icbeg,icend
         call setvbc (ic,jc)
@@ -229,7 +229,7 @@ c      main free surface model loop to carry out a
 c      partial timestep for each model point
 c-----------------------------------------------------------------------
 c
-C$OMP PARALLEL DO PRIVATE( ic , jc ) , SCHEDULE(DYNAMIC, jmt/4)
+C$OMP PARALLEL DO PRIVATE( ic , jc ) , SCHEDULE(GUIDED)
           do jc=jcbeg,jcend
            do ic=icbeg,icend
 #ifdef inline
