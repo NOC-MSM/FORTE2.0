@@ -20,8 +20,8 @@ set RETRY = no                    # Attempt re-run of increment in event of fail
 
 # Specify details of a run increment
 #
-set NDAYS2RUN    = 3600            # Run length (days)
-set RESTARTEVERY = 3600            # Frequency at which to write restarts (days)
+set NDAYS2RUN    = 3600           # Run length (days)
+set RESTARTEVERY = 3600           # Frequency at which to write restarts (days)
 set OUTPUTEVERY  = 360             # Ocean output frequency
 set AOUTPUTEVERY = 360             # Atmosphere output frequency
 
@@ -33,8 +33,8 @@ set AOUTPUTEVERY = 360             # Atmosphere output frequency
 # v                            v
 # ------------------------------  RUNNAME (==) PREVIOUS_RUN
 
-set NINCR = 50                    # Specify the number of increments to run
-set NRUN = 1                      # Starting at increment  (use 1 if starting from rest, or a value <= NINCR if restarting)
+set NINCR = 50                  # Specify the number of increments to run
+set NRUN = 1                    # Starting at increment  (use 1 if starting from rest, or a value <= NINCR if restarting)
 
 
 
@@ -69,7 +69,9 @@ set FNSST = sst_test.nc
 while ( $NRUN <= $NINCR )
 echo Run increment = $NRUN
 
-set PRUN = `echo "$NRUN - 1" | bc`
+# Use 4-digit NRUN4 and PRUN4 for file naming, but have to keep NRUN without leading zeroes to please csh...
+set NRUN4 = `printf "%04d\n" $NRUN`
+set PRUN4 = `echo $NRUN | awk '{printf("%04d\n",($1 - 1))}'`
 
 # IGCM4 settings - start from rest, or continue from restart if NRUN > 1
 set INIT = .true.
@@ -115,8 +117,8 @@ if ( $PREVIOUS_RUN == $RUNNAME ) then
     \cp $OCEAN_RUN/$RUNNAME.moma/sstatmos $OASIS_RUN/wkdir.$RUNNAME/sstocean
     \cp $ATMOS_RUN/$RUNNAME.igcm4/flxocean $OASIS_RUN/wkdir.$RUNNAME/flxatmos
   else
-    \cp $OCEAN_RUN/$RUNNAME.moma/${PREVIOUS_RUN}_r${PRUN}.sstatmos $OASIS_RUN/wkdir.$RUNNAME/sstocean
-    \cp $ATMOS_RUN/$RUNNAME.igcm4/${PREVIOUS_RUN}_r${PRUN}.flxocean $OASIS_RUN/wkdir.$RUNNAME/flxatmos
+    \cp $OCEAN_RUN/$RUNNAME.moma/${PREVIOUS_RUN}_r${PRUN4}.sstatmos $OASIS_RUN/wkdir.$RUNNAME/sstocean
+    \cp $ATMOS_RUN/$RUNNAME.igcm4/${PREVIOUS_RUN}_r${PRUN4}.flxocean $OASIS_RUN/wkdir.$RUNNAME/flxatmos
   endif
 
 else
@@ -176,8 +178,8 @@ if ( $PREVIOUS_RUN == $RUNNAME ) then
   if ( $INIT == .false. ) then
     cd $ATMOS_RUN/$RUNNAME.igcm4
     \rm input.dat RestartSurface.dat        # Remove these to prevent copying over the links
-    \cp output.${RUNNAME}_r${PRUN}.12 input.dat
-    \cp output.${RUNNAME}_r${PRUN}.17 RestartSurface.dat
+    \cp output.${RUNNAME}_r${PRUN4}.12 input.dat
+    \cp output.${RUNNAME}_r${PRUN4}.17 RestartSurface.dat
     cd $FORTE_PATH
   endif
 
@@ -253,7 +255,7 @@ if ( $PREVIOUS_RUN == $RUNNAME ) then
   else
     # The name of the ocean restart (FNREST) and BEGDAY are found from the moma.log file...
     # **This is a potential source of problems - for example if the moma.log files are moved/deleted from $FORTE_PATH
-    set FNREST = `grep -B 1 "==> END of model run" $FORTE_PATH/$RUNNAME.moma.log.$PRUN | head -1 | sed 's/.*\/\(.*\)\".*/\1/' `
+    set FNREST = `grep -B 1 "==> END of model run" $FORTE_PATH/$RUNNAME.moma.log.$PRUN4 | head -1 | sed 's/.*\/\(.*\)\".*/\1/' `
     set BEGDAY  = `echo $FNREST | cut -c4-9`
   endif
 
@@ -364,8 +366,8 @@ echo "from $PWD"
 
 cat > $RUNNAME.script << !
 #!/bin/bash
-#SBATCH -N 3
-#SBATCH --job-name=FHF
+#SBATCH -N 4
+#SBATCH --job-name=L35s01
 #SBATCH --partition=test
 #SBATCH --time=03:00:00
 ##SBATCH --exclude=node[03]
@@ -380,7 +382,10 @@ module list
 # OMP Parallel MOMA
 # In bash command is:  export OMP_NUM_THREADS=4
 # In csh  command is:  setenv OMP_NUM_THREADS 4
-  export OMP_NUM_THREADS=5
+  export OMP_NUM_THREADS=8
+  export OMP_WAIT_POLICY=active
+  export OMP_DYNAMIC=false
+  export OMP_PROC_BIND=true
 #
   date
   squeue
@@ -397,21 +402,21 @@ module list
   cd $FORTE_PATH
 
   # Start OASIS
-  echo "Starting OASIS..." > $FORTE_PATH/$RUNNAME.oasis.log.$NRUN
+  echo "Starting OASIS..." > $FORTE_PATH/$RUNNAME.oasis.log.$NRUN4
   cd $OASIS_RUN/wkdir.$RUNNAME
-     ./oasis >> $FORTE_PATH/$RUNNAME.oasis.log.$NRUN &
+     ./oasis >> $FORTE_PATH/$RUNNAME.oasis.log.$NRUN4 &
   cd $FORTE_PATH
 
   # Start MOMA
-  echo "Starting MOMA..." > $FORTE_PATH/$RUNNAME.moma.log.$NRUN
+  echo "Starting MOMA..." > $FORTE_PATH/$RUNNAME.moma.log.$NRUN4
   cd $OCEAN_RUN/$RUNNAME.moma
-     ./moma >> $FORTE_PATH/$RUNNAME.moma.log.$NRUN &
+     ./moma >> $FORTE_PATH/$RUNNAME.moma.log.$NRUN4 &
   cd $FORTE_PATH
 
   # Start IGCM4
-  echo "Starting IGCM4..." > $FORTE_PATH/$RUNNAME.igcm4.log.$NRUN
+  echo "Starting IGCM4..." > $FORTE_PATH/$RUNNAME.igcm4.log.$NRUN4
   cd $ATMOS_RUN/$RUNNAME.igcm4
-     time `which mpirun` -np 32 --map-by node ./$IGCM4_EXEC >> $FORTE_PATH/$RUNNAME.igcm4.log.$NRUN &
+     time `which mpirun` -np 32 --map-by node ./$IGCM4_EXEC >> $FORTE_PATH/$RUNNAME.igcm4.log.$NRUN4 &
   cd $FORTE_PATH
 
   # OASIS, MOMA and IGCM4 all running in background, so wait for them...
@@ -463,11 +468,11 @@ cd $ATMOS_RUN/$RUNNAME.igcm4/
 if ( -e toyatm.prt ) \rm toyatm.prt
 
 # Move data
-if ( -e output.dat ) \mv output.dat ${RUNNAME}_r${NRUN}_d${AOUTPUTEVERY}.at.output.dat
-if ( -e history.dat ) \mv history.dat ${RUNNAME}_r${NRUN}_d${AOUTPUTEVERY}.at.history.dat
-\mv LastRestart.dat output.${RUNNAME}_r${NRUN}.12
-\mv LastSurfRestart.dat output.${RUNNAME}_r${NRUN}.17
-\cp flxocean ${RUNNAME}_r${NRUN}.flxocean
+if ( -e output.dat ) \mv output.dat ${RUNNAME}_r${NRUN4}_d${AOUTPUTEVERY}.at.output.dat
+if ( -e history.dat ) \mv history.dat ${RUNNAME}_r${NRUN4}_d${AOUTPUTEVERY}.at.history.dat
+\mv LastRestart.dat output.${RUNNAME}_r${NRUN4}.12
+\mv LastSurfRestart.dat output.${RUNNAME}_r${NRUN4}.17
+\cp flxocean ${RUNNAME}_r${NRUN4}.flxocean
 
 
 
@@ -483,8 +488,8 @@ if ( -e ocean.in ) \rm ocean.in
 
 # Move data
 # CAUTION: This should be done carefully...
-if ( -e `ls -1 *avg.nc` ) \mv `ls -1 *avg.nc` ${RUNNAME}_r${NRUN}_d${OUTPUTEVERY}.oc.nc
-\cp sstatmos ${RUNNAME}_r${NRUN}.sstatmos
+if ( -e `ls -1 *avg.nc` ) \mv `ls -1 *avg.nc` ${RUNNAME}_r${NRUN4}_d${OUTPUTEVERY}.oc.nc
+\cp sstatmos ${RUNNAME}_r${NRUN4}.sstatmos
 
 wait
 
@@ -493,7 +498,7 @@ wait
 #====================================================================
 # There is currently no limit to the number of retries - use with care
 cd $FORTE_PATH
-if ( `grep -c "END of model run" ${RUNNAME}.moma.log.${NRUN}` == 1 ) then
+if ( `grep -c "END of model run" ${RUNNAME}.moma.log.${NRUN4}` == 1 ) then
 else
   if ( $RETRY == yes ) then
     @ NRUN--
