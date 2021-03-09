@@ -14,7 +14,7 @@ To run:
 ** Example scripts 'batch_job??' are provided, though be aware that job control etc. are platform dependent. 
 
  - Edit ./batch_jobXX as necessary/desired
- - Launch FORTE2.0 using e.g.:     ./batch_jobXX > run.out 2>&1 &
+ - Launch FORTE2.0 using e.g.:     ./batch_jobXX &> run.out &
 
 
 [![DOI](https://zenodo.org/badge/237035818.svg)](https://zenodo.org/badge/latestdoi/237035818)
