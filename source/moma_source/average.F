@@ -463,21 +463,21 @@ c     &     'OasisSFLUX','LONGITUDE_T','LATITUDE_T','DAY',' ',
 c     &     'Surface Salinity. Flux',
 c     &     'm/year',REAL_TYPE,precision,fn_kmt2d)
 
-c      call cgs_to_base(km,avsmf(1,1,1),4)
+      call cgs_to_base(km,avsmf(1,1,1),4)
       call mnc_write_4d( netcdffile , avsmf(1,1,1) ,
      &     'tauu','LONGITUDE_T','LATITUDE_T','DAY',' ',
      &     'surface_downward_eastward_stress',
      &     'Pa',REAL_TYPE,precision,fn_kmt2d)
-c      call base_to_cgs(km,avsmf(1,1,1),4)
+      call base_to_cgs(km,avsmf(1,1,1),4)
 
       print*,'commented out tauu cgs'
 
-c      call cgs_to_base(km,avsmf(1,1,2),4)
+      call cgs_to_base(km,avsmf(1,1,2),4)
       call mnc_write_4d( netcdffile , avsmf(1,1,2) ,
      &     'tauv','LONGITUDE_T','LATITUDE_T','DAY',' ',
      &     'surface_downward_northward_stress',
      &     'Pa',REAL_TYPE,precision,fn_kmt2d)
-c      call base_to_cgs(km,avsmf(1,1,2),4)
+      call base_to_cgs(km,avsmf(1,1,2),4)
 
       print*,'commented out tauv cgs'
 
