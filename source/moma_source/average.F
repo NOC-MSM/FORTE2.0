@@ -112,7 +112,7 @@ C$OMP PARALLEL DO PRIVATE( i , j ) , SCHEDULE(STATIC)
 #ifdef nflux_write
 c--- Multiply northward heat flux by specific heat capacity (cm**3)
             avnflux(k,i,j,1) = avnflux(k,i,j,1) + nflux(k,i,j,1)
-     &      *4.2*timeinc
+     &      *3.991868*timeinc
 c--- Divide northward FW flux by 1e6 (Sv)
             avnflux(k,i,j,2) = avnflux(k,i,j,2) + nflux(k,i,j,2)
      &      *0.000001*timeinc
