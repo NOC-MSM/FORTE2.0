@@ -229,7 +229,7 @@ echo "Making links:" $PWD
      [ -f vegetation.dat ] && \rm -f vegetation.dat
      ln -s $INIDATA/vegetation.260x32.171011 vegetation.dat
      [ -f flxocean ] && \rm -f flxocean
-     ln -s $INIDATA/flxocean flxocean
+     cp -p $INIDATA/flxocean flxocean
      [ -f topog_gwd.dat ] && \rm -f topog_gwd.dat
      ln -s $INIDATA/topog_gwd.T42.dat topog_gwd.dat
 
