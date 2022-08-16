@@ -29,7 +29,7 @@
             ! not propagate purely vertically upwards but also 
             ! slightly horizontally too.
             !-----------------------------------------------------
-            ALLOCATE(TopvarFull(MG,NHEM,JG))
+            ALLOCATE(TopvarFull(MGPP,NHEM,JG))
             open(51,file='topog_gwd.dat',status='old')
 	    read(51,*) TopvarFull
 	    close(51)
@@ -40,7 +40,7 @@
          !-----------------------------------------------------
          ! Share TOPVAR across PEs
          !-----------------------------------------------------
-         CALL SHAREGRID(.TRUE.,MG,1,TopvarFull,TOPVAR)
+         CALL SHAREGRID(.TRUE.,MGPP,1,TopvarFull,TOPVAR)
          IF (MyPe.EQ.0) DEALLOCATE(TopvarFull)
 */ ---------------------------------------
 */ Add the GWK,GWNO variable to the PHYS common block
