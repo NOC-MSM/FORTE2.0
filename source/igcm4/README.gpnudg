@@ -1,0 +1,20 @@
+#########################################################################
+#########################################################################
+
+README.nudge
+
+Instructions on using the nudging code extenstion CREASE.basic_gpnudg.L20
+Nudging variables U, V, SP, T
+
+1) Amend and run python script nudging_preconditioning.py. This script reads in climatology and nudging reference state (to be calculated  outside this script). The script processes these files into .dat files to be read into CREATE.basic_gpnudg.L20.
+	In addition to U, V, SP and T, spatial (dum) and temporal (timeramp) .dat files are generated
+
+2) In CREATE.basic_gpnudg.L20 ensure NUDGREF on L43 points towards the correct folder where the .dat files have been generated
+
+3) In CREATE.basic_gpnudg.L20 to enable grid point nudging, in NAMELIST (L1091) ensure
+	LNUDG=.FALSE.,LNUDGGP=.TRUE
+
+4) Up to this point, any nudging simulations have been performed after a spin up run, so ensure the DAY value L969 is appropriate. This script has been set up for an extended winter relaxation, so bear that in mind too.
+
+#########################################################################
+#########################################################################
