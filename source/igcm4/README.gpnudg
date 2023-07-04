@@ -3,7 +3,7 @@
 
 README.gpnudg
 
-Instructions on using the nudging code extenstion CREASE.basic_gpnudg.L20
+Instructions on using the nudging code extenstion CREATE.basic_gpnudg.L20
 Nudging variables U, V, SP, T
 
 1) Amend and run python script nudging_preconditioning.py. This script reads in climatology and nudging reference state (to be calculated  outside this script). The script processes these files into .dat files to be read into CREATE.basic_gpnudg.L20.
