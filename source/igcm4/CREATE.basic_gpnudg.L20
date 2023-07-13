@@ -1,0 +1,1228 @@
+#! /bin/ksh
+set -xve
+set +v
+############################################# USER SWITCHES.
+
+echo $SRCSTORE
+
+RUNNAME=$1.igcm4
+RPATH='/nobackup/eewjd/forte2_march5'
+NUPDATE=yes               # Nupdate to a new code, or re-use existing one
+
+OROGRAPHY=cmip_tiling_arctic
+
+SRCSTORE=$RPATH/source/igcm4/igcm4-forte-code/SRCSTORE
+RUNSTORE=$RPATH/run_dirs/igcm4
+COMPDIR=$RPATH/source/igcm4/compdir
+EXPDIR=$RUNSTORE/$RUNNAME
+OASISCLIMDIR=$RPATH/source/oasis/toyclim/wkdir.basic
+ProgLib=$RPATH/source/igcm4/igcm_mpi.npl
+
+#############################################
+COMPILE=yes                   # Nupdate and compile (yes/no)
+#############################################
+OASISCLIMDIR=$RPATH/source/oasis/toyclim/wkdir.basic
+
+NETCDF_ROOT=$NETCDF_HOME
+NETCDFLIB=$NETCDF_ROOT/lib
+NETCDFINC=$NETCDF_ROOT/include
+
+PVM_ROOT=$RPATH/source/pvm3
+PVM_ARCH=LINUX64
+PVMLIB=$PVM_ROOT/lib/$PVM_ARCH
+
+MPILIB=$MPI_HOME/lib
+MPIINC=$MPI_HOME/include
+
+#############################################
+# Linux directories
+KD=$RPATH/source/igcm4/kd # position of KD directory
+
+CLIMDIR=$RPATH/source/igcm4/data/CLIMDATA/NEW
+NUPDATE=$RPATH/source/igcm4/nupdate/nupdate
+NUDGREF=$RPATH/source/igcm4/data/CLIMDATA/NEW/nudg/forte2_jun10_input_jun5mask_y163_tr_sc
+OROGDIR=$RPATH/source/igcm4/data/OROG
+INIDATA=$RPATH/source/igcm4/data
+
+EXEC=L20-$RUNNAME         # Name of the executable      
+#                         # to be created if COMPILE=yes
+
+############################################# UPDATE DIRECTIVES.
+#
+[ ! -d $EXPDIR ]   &&   mkdir -p $EXPDIR
+cd $COMPDIR
+[ ! -d $EXPDIR/climdata ]   &&   mkdir -p $EXPDIR/climdata
+cat  <<  /EOF  >  updates
+*READ ${SRCSTORE}/T42L20-m.upd
+*READ ${SRCSTORE}/forte/T42-runoff-real_snow_ice-m.upd
+*READ ${SRCSTORE}/forte/T42-av-accumulate-tile-m.upd
+*READ ${SRCSTORE}/morcrette3_1_1_swv-m.upd
+*READ ${SRCSTORE}/igcm_radclouds_sebal_2012-m.upd
+*READ ${SRCSTORE}/forte/T42L20-forte-m.upd
+*READ ${SRCSTORE}/forte/surfacetype2012-forte-m.upd
+*READ ${SRCSTORE}/forte/T42-common_tile-m.upd
+*READ ${SRCSTORE}/forte/T42-tiling-m.upd
+*READ ${SRCSTORE}/forte/runscript-m.upd
+*READ ${SRCSTORE}/forte/T42-oasis-m.upd
+*READ ${SRCSTORE}/forte/oasis-backend-m.upd
+*READ ${SRCSTORE}/forte/T42L20_misc_common.upd
+*IDENT T42IGCM4
+*DEF ABOVE_V1,ONLY_V3
+*/
+*/ T42L20 topography, vegetation and ocean heatflux
+*/
+*D PARAM1.8
+      INTEGER, PARAMETER :: NHEM=2
+*D PARAM1.11
+      INTEGER, PARAMETER :: MM=42
+*D PARAM1.16
+      INTEGER, PARAMETER :: NL=20
+*D PARAM1.18
+      INTEGER, PARAMETER :: MG=128
+*D PARAM1.21
+      INTEGER, PARAMETER :: JG=32
+*D PARAM1.24
+      INTEGER, PARAMETER :: NTRAC=1
+*D PARAM1.35,36
+      INTEGER, PARAMETER :: NWJ2=462
+*D PARAM1.47
+      INTEGER, PARAMETER :: npe=32
+*D PARAM1.50
+      INTEGER, PARAMETER :: NLEVRF=3
+*D PARAM3.12
+      INTEGER, PARAMETER :: Px=8
+/EOF
+# Updates for spinup executable
+cp updates updates_spin
+cat  <<  /EOF  >>  updates_spin
+*READ ${SRCSTORE}/chg_read_nl.upd
+*READ ${SRCSTORE}/forte/spinup-forte-m.upd
+/EOF
+
+# Updates for continuation executable
+cp updates updates_cont
+cat  <<  /EOF  >>  updates_cont
+*READ ${SRCSTORE}/forte/restart-forte-m.upd
+
+*/ =======================================
+*/ NUDGING EDITS
+*/ =======================================
+*/
+*/ ---------------------------------------
+*/ Add ININDG
+*/ Initialises nudging reference state
+*/ ---------------------------------------
+*/
+*/ --- Add required parameters for nudging ---
+*/
+*I GRIDPA3.46
+      REAL :: FPLG3(MGx,NHEM,JGy)
+
+*D GRIDPA3.14
+     & ,TRAG3,FPLG3,TRANLG3
+
+*I OUTCON.42
+      REAL :: DNUDG(NL)
+      REAL :: SPNUDG
+      REAL :: DNDMAX
+      REAL :: KNUDG(NL)
+      REAL :: KMX
+      REAL :: KMN
+      REAL :: TAUND
+
+      !wd edits
+      COMPLEX :: UNDGI2(NL,MGx,NHEM,JGy)
+      COMPLEX :: UNDGI3(NL,MGx,NHEM,JGy)
+      COMPLEX :: UNDGJ2(NL,MGx,NHEM,JGy)
+      COMPLEX :: UNDGJ3(NL,MGx,NHEM,JGy)
+      
+      COMPLEX :: VNDGI2(NL,MGx,NHEM,JGy)
+      COMPLEX :: VNDGI3(NL,MGx,NHEM,JGy)
+      COMPLEX :: VNDGJ2(NL,MGx,NHEM,JGy)
+      COMPLEX :: VNDGJ3(NL,MGx,NHEM,JGy)
+
+      COMPLEX :: TNDGI2(NL,MGx,NHEM,JGy)
+      COMPLEX :: TNDGI3(NL,MGx,NHEM,JGy)
+      COMPLEX :: TNDGJ2(NL,MGx,NHEM,JGy)
+      COMPLEX :: TNDGJ3(NL,MGx,NHEM,JGy)
+
+      COMPLEX :: SPNDGI2(1,MGx,NHEM,JGy)
+      COMPLEX :: SPNDGI3(1,MGx,NHEM,JGy)
+      COMPLEX :: SPNDGJ2(1,MGx,NHEM,JGy)
+      COMPLEX :: SPNDGJ3(1,MGx,NHEM,JGy)
+
+      COMPLEX :: DUMNDGI2(NL,MGx,NHEM,JGy)
+      COMPLEX :: DUMNDGI3(NL,MGx,NHEM,JGy)
+      COMPLEX :: DUMNDGJ2(NL,MGx,NHEM,JGy)
+      COMPLEX :: DUMNDGJ3(NL,MGx,NHEM,JGy)
+
+      COMPLEX :: TIMERAMPNDGI2(NL,MGx,NHEM,JGy)
+      COMPLEX :: TIMERAMPNDGI3(NL,MGx,NHEM,JGy)
+      COMPLEX :: TIMERAMPNDGJ2(NL,MGx,NHEM,JGy)
+      COMPLEX :: TIMERAMPNDGJ3(NL,MGx,NHEM,JGy)
+
+
+      LOGICAL :: LNUDG
+      LOGICAL :: LNDCYC
+      LOGICAL :: LNUDGGP
+*/
+*/ --- Now call ININDG in initialisation subroutine ---
+*/ --- INITAL and add ININDG subroutine code ---
+*/
+*I INITAL.62
+      CALL ININDG
+*DECK ININDG
+!=====================================================
+! Initialises nudging reference state
+!=====================================================
+
+      SUBROUTINE ININDG
+      IMPLICIT NONE
+!
+*CALL PARAM1
+*CALL PARAM2
+*CALL PARAM3
+*CALL BLANK
+*CALL MPIDECK
+*CALL BATS
+*CALL RESTOR
+*CALL OUTCON
+*CALL LEGAU
+!-----------------------------------------------------
+! Local variables
+!-----------------------------------------------------
+! Loop variable
+      INTEGER :: iCol2,L,IHEM,J,iRow2,iPe,IN,IM,I,JH
+      INTEGER :: countLHEM,countHEM,countJ
+! MPI variables
+      INTEGER, PARAMETER :: TagRef=100000
+      INTEGER, PARAMETER :: TagRefJ=100001
+      INTEGER(KIND=Type) :: iTagJ
+! Nudging variables
+      REAL :: RDAY
+      REAL :: KTND
+      REAL :: RNT1,RNT2
+      REAL :: DOYC
+      REAL :: BEGDOY1
+      character*3 :: bday
+      character*31 :: UA10,VA10,T10,SP10
+      character*31 :: UA11,VA11,T11,SP11
+      character*31 :: UA20,VA20,T20,SP20
+      character*31 :: UA21,VA21,T21,SP21
+
+      REAL :: uan10(NL,MGx,NHEM,JGy)
+      REAL :: uan11(NL,MGx,NHEM,JGy)
+      REAL :: uan20(NL,MGx,NHEM,JGy)
+      REAL :: uan21(NL,MGx,NHEM,JGy)
+
+      REAL :: van10(NL,MGx,NHEM,JGy)
+      REAL :: van11(NL,MGx,NHEM,JGy)
+      REAL :: van20(NL,MGx,NHEM,JGy)
+      REAL :: van21(NL,MGx,NHEM,JGy)
+
+      REAL :: tn10(NL,MGx,NHEM,JGy)
+      REAL :: tn11(NL,MGx,NHEM,JGy)
+      REAL :: tn20(NL,MGx,NHEM,JGy)
+      REAL :: tn21(NL,MGx,NHEM,JGy)
+
+      REAL :: spn10(1,MGx,NHEM,JGy)
+      REAL :: spn11(1,MGx,NHEM,JGy)
+      REAL :: spn20(1,MGx,NHEM,JGy)
+      REAL :: spn21(1,MGx,NHEM,JGy)
+
+      character*31 :: DUM10
+      character*31 :: DUM11
+      character*31 :: DUM20
+      character*31 :: DUM21
+      REAL :: dumn10(NL,MGx,NHEM,JGy)
+      REAL :: dumn11(NL,MGx,NHEM,JGy)
+      REAL :: dumn20(NL,MGx,NHEM,JGy)
+      REAL :: dumn21(NL,MGx,NHEM,JGy)
+
+      character*31 :: TIMERAMP10
+      character*31 :: TIMERAMP11
+      character*31 :: TIMERAMP20
+      character*31 :: TIMERAMP21
+      REAL :: timerampn10(NL,MGx,NHEM,JGy)
+      REAL :: timerampn11(NL,MGx,NHEM,JGy)
+      REAL :: timerampn20(NL,MGx,NHEM,JGy)
+      REAL :: timerampn21(NL,MGx,NHEM,JGy)
+
+
+!-----------------------------------------------------
+  203 FORMAT(15F12.2)
+      NAMELIST/INNUDG/  LNUDG,LNDCYC,LNUDGGP,KINND,DNUDG,SPNUDG,DNDMAX
+     +                 ,KNUDG,KMX,KMN,TAUND
+      !-----------------------------------------------------------------
+      !-----------------------------------------------------------------
+      ! Variables are set on PE 0 and then passed to the other PEs
+      !-----------------------------------------------------------------
+      !!!MYPE.EQ.0-
+      IF (MYPE.EQ.0) THEN
+       !----------------------------------------------------------------
+       !----------------------------------------------------------------
+       ! Set default values and override as desired through
+       ! NAMELIST input
+       !----------------------------------------------------------------
+       LNUDG=.FALSE.
+       LNDCYC=.FALSE.
+       LNUDGGP=.FALSE.
+       KINND=-1
+       SPNUDG=0.
+       DNDMAX=-1.
+       KMX=0.
+       KMN=0.
+       TAUND=0.
+       ! Init these as 0:
+       UNDGI2 = 0.
+       UNDGI3 = 0.
+       UNDGJ2 = 0.
+       UNDGJ3 = 0.
+
+       VNDGI2 = 0.
+       VNDGI3 = 0.
+       VNDGJ2 = 0.
+       VNDGJ3 = 0.
+
+       TNDGI2 = 0.
+       TNDGI3 = 0.
+       TNDGJ2 = 0.
+       TNDGJ3 = 0.
+
+       SPNDGI2 = 0.
+       SPNDGI3 = 0.
+       SPNDGJ2 = 0.
+       SPNDGJ3 = 0.
+
+       DUMNDGI2 = 0.
+       DUMNDGI3=0.
+       DUMNDGJ2 = 0.
+       DUMNDGJ3 = 0.
+
+       TIMERAMPNDGI2 = 0.
+       TIMERAMPNDGI3=0.
+       TIMERAMPNDGJ2 = 0.
+       TIMERAMPNDGJ3 = 0.
+
+       DO 31 L=1,NL
+        DNUDG(L) = 0.
+        KNUDG(L) = 0.
+   31  CONTINUE
+       !----------------------------------------------------------------
+       ! Read NAMELISTs, overwrite defaults and write them out
+       !----------------------------------------------------------------
+       READ(7,INNUDG)
+       WRITE(2,INNUDG)
+       !----------------------------------------------------------------
+       ! Set up nudging parameters if need be
+       !----------------------------------------------------------------
+       IF (LNUDGGP) THEN
+        RDAY = WW/PI2
+        KTND = (24./TAUND)*RDAY
+        KNUDG = ((SIGMA) - KMN)/(KMX - KMN)
+        DO 25 L=1,NL
+         IF (KNUDG(L).LT.0.0) THEN
+          KNUDG(L) = 0.0
+         ELSE IF (KNUDG(L).GT.1.0) THEN
+          KNUDG(L) = 1.0
+         ENDIF
+   25   CONTINUE
+        DO 24 L=1,NL
+         IF (KNUDG(L).GT.0.0) THEN
+          DNUDG(L) = KTND*KNUDG(L)/WW
+         ELSE
+          DNUDG(L) = 0.0
+         ENDIF
+
+          PRINT *,'DNUDG(1)=',DNUDG(1)
+          PRINT *,'DNUDG(2)=',DNUDG(2)
+          PRINT *,'DNUDG(3)=',DNUDG(3)
+          PRINT *,'DNUDG(4)=',DNUDG(4)
+          PRINT *,'DNUDG(5)=',DNUDG(5)
+          PRINT *,'DNUDG(6)=',DNUDG(6)
+          PRINT *,'DNUDG(7)=',DNUDG(7)
+          PRINT *,'DNUDG(8)=',DNUDG(8)
+          PRINT *,'DNUDG(9)=',DNUDG(9)
+          PRINT *,'DNUDG(10)=',DNUDG(10)
+          PRINT *,'DNUDG(11)=',DNUDG(11)
+          PRINT *,'DNUDG(12)=',DNUDG(12)
+          PRINT *,'DNUDG(13)=',DNUDG(13)
+          PRINT *,'DNUDG(14)=',DNUDG(14)
+          PRINT *,'DNUDG(15)=',DNUDG(15)
+          PRINT *,'DNUDG(16)=',DNUDG(16)
+          PRINT *,'DNUDG(17)=',DNUDG(17)
+          PRINT *,'DNUDG(18)=',DNUDG(18)
+          PRINT *,'DNUDG(19)=',DNUDG(19)
+          PRINT *,'DNUDG(20)=',DNUDG(20)
+
+
+
+   24   CONTINUE
+        SPNUDG=DNUDG(NL)
+        WRITE(2,203) DNUDG
+       ENDIF
+      ENDIF
+      !-----------------------------------------------------------------
+      ! Pass information from PE 0 to other PEs
+      !-----------------------------------------------------------------
+      IF (NPE.GT.1) THEN
+       iSend=0
+       nBuffSize=1
+       CALL MPI_BARRIER(MPI_COMM_WORLD,ierr)
+       CALL MPI_BCAST(LNUDG,nBuffSize,ParaLog,iSend,
+     &                MPI_COMM_WORLD,ierr)
+       CALL MPI_BCAST(LNDCYC,nBuffSize,ParaLog,iSend,
+     &                MPI_COMM_WORLD,ierr)
+       CALL MPI_BCAST(LNUDGGP,nBuffSize,ParaLog,iSend,
+     &                MPI_COMM_WORLD,ierr)
+       CALL MPI_BCAST(KINND,nBuffSize,ParaInt,iSend,
+     &                MPI_COMM_WORLD,ierr)
+       CALL MPI_BCAST(SPNUDG,nBuffSize,ParaReal,iSend,
+     &                MPI_COMM_WORLD,ierr)
+       CALL MPI_BCAST(DNDMAX,nBuffSize,ParaReal,iSend,
+     &                MPI_COMM_WORLD,ierr)
+       nBuffSize=NL
+       CALL MPI_BCAST(DNUDG,nBuffSize,ParaReal,iSend,
+     &                MPI_COMM_WORLD,ierr)
+       CALL MPI_BARRIER(MPI_COMM_WORLD,ierr)
+      ENDIF
+      !-----------------------------------------------------------------
+      ! Read in grid-point nudging fields
+      !-----------------------------------------------------------------
+      ! If a nudging run read in reference state
+      ! to nudge towards
+      !-----------------------------------------------------------------
+      IF (LNUDGGP) THEN
+       !----------------------------------------------------------------
+       ! Grid point nudging
+       !----------------------------------------------------------------
+       ! First two records are 
+       ! the BEGDOY and +1 (there are 360 records in total)
+       WRITE(bday, '(i3)') NINT(BEGDOY)
+       UA10='ua_d'//trim(adjustl(bday))//
+     &			'_0_dims.dat'
+       UA11='ua_d'//trim(adjustl(bday))//
+     &			'_1_dims.dat'
+
+       VA10='va_d'//trim(adjustl(bday))//
+     &			'_0_dims.dat'
+       VA11='va_d'//trim(adjustl(bday))//
+     &			'_1_dims.dat'
+
+       T10='temp_d'//trim(adjustl(bday))//
+     &			'_0_dims.dat'
+       T11='temp_d'//trim(adjustl(bday))//
+     &			'_1_dims.dat'
+
+       SP10='ps_d'//trim(adjustl(bday))//
+     &			'_0_dims.dat'
+       SP11='ps_d'//trim(adjustl(bday))//
+     &			'_1_dims.dat'
+
+       DUM10='dum_d'//trim(adjustl(bday))//
+     &			'_0_dims.dat'
+       DUM11='dum_d'//trim(adjustl(bday))//
+     &			'_1_dims.dat'
+
+       TIMERAMP10='dum_d'//trim(adjustl(bday))//
+     &                  '_0_dims.dat'
+       TIMERAMP11='dum_d'//trim(adjustl(bday))//
+     &                  '_1_dims.dat'
+
+
+       BEGDOY1=BEGDOY+1
+       WRITE(bday, '(i3)') NINT(BEGDOY1)
+       UA20='ua_d'//trim(adjustl(bday))//
+     &			'_0_dims.dat'
+       UA21='ua_d'//trim(adjustl(bday))//
+     &			'_1_dims.dat'
+
+       VA20='va_d'//trim(adjustl(bday))//
+     &			'_0_dims.dat'
+       VA21='va_d'//trim(adjustl(bday))//
+     &			'_1_dims.dat'
+
+       T20='temp_d'//trim(adjustl(bday))//
+     &			'_0_dims.dat'
+       T21='temp_d'//trim(adjustl(bday))//
+     &			'_1_dims.dat'
+
+       SP20='ps_d'//trim(adjustl(bday))//
+     &			'_0_dims.dat'
+       SP21='ps_d'//trim(adjustl(bday))//
+     &			'_1_dims.dat'
+
+       DUM20='dum_d'//trim(adjustl(bday))//
+     &			'_0_dims.dat'
+       DUM21='dum_d'//trim(adjustl(bday))//
+     &			'_1_dims.dat'
+
+       TIMERAMP20='timeramp_d'//trim(adjustl(bday))//
+     &                  '_0_dims.dat'
+       TIMERAMP21='timeramp_d'//trim(adjustl(bday))//
+     &                  '_1_dims.dat'
+       !----------------------------------------------------------------
+       ! Time-varying zonal mean state;
+       ! read in first two records
+       ! to set up cubic spline interpolation
+       !----------------------------------------------------------------
+       IF (MYPE.EQ.0) print *, '* READING FILE: ', UA10
+       CALL READCLIM(UA10,NL,.FALSE.,uan10)
+       IF (MYPE.EQ.0) print *, '* READING FILE: ', UA11
+       CALL READCLIM(UA11,NL,.FALSE.,uan11)
+       IF (MYPE.EQ.0) print *, '* READING FILE: ', UA20
+       CALL READCLIM(UA20,NL,.FALSE.,uan20)
+       IF (MYPE.EQ.0) print *, '* READING FILE: ', UA21
+       CALL READCLIM(UA21,NL,.FALSE.,uan21)
+
+       IF (MYPE.EQ.0) print *, '* READING FILE: ', VA10
+       CALL READCLIM(VA10,NL,.FALSE.,van10)
+       IF (MYPE.EQ.0) print *, '* READING FILE: ', VA11
+       CALL READCLIM(VA11,NL,.FALSE.,van11)
+       IF (MYPE.EQ.0) print *, '* READING FILE: ', VA20
+       CALL READCLIM(VA20,NL,.FALSE.,van20)
+       IF (MYPE.EQ.0) print *, '* READING FILE: ', VA21
+       CALL READCLIM(VA21,NL,.FALSE.,van21)
+
+       IF (MYPE.EQ.0) print *, '* READING FILE: ', T10
+       CALL READCLIM(T10,NL,.FALSE.,tn10)
+       IF (MYPE.EQ.0) print *, '* READING FILE: ', T11
+       CALL READCLIM(T11,NL,.FALSE.,tn11)
+       IF (MYPE.EQ.0) print *, '* READING FILE: ', T20
+       CALL READCLIM(T20,NL,.FALSE.,tn20)
+       IF (MYPE.EQ.0) print *, '* READING FILE: ', T21
+       CALL READCLIM(T21,NL,.FALSE.,tn21)
+
+       IF (MYPE.EQ.0) print *, '* READING FILE: ', SP10
+       CALL READCLIM(SP10,1,.FALSE.,spn10)
+       IF (MYPE.EQ.0) print *, '* READING FILE: ', SP11
+       CALL READCLIM(SP11,1,.FALSE.,spn11)
+       IF (MYPE.EQ.0) print *, '* READING FILE: ', SP20
+       CALL READCLIM(SP20,1,.FALSE.,spn20)
+       IF (MYPE.EQ.0) print *, '* READING FILE: ', SP21
+       CALL READCLIM(SP21,1,.FALSE.,spn21)
+
+       IF (MYPE.EQ.0) print *, '* READING FILE: ', DUM10
+       CALL READCLIM(DUM10,NL,.FALSE.,dumn10)
+       IF (MYPE.EQ.0) print *, '* READING FILE: ', DUM11
+       CALL READCLIM(DUM11,NL,.FALSE.,dumn11)
+       IF (MYPE.EQ.0) print *, '* READING FILE: ', DUM20
+       CALL READCLIM(DUM20,NL,.FALSE.,dumn20)
+       IF (MYPE.EQ.0) print *, '* READING FILE: ', DUM21
+       CALL READCLIM(DUM21,NL,.FALSE.,dumn21)
+
+       IF (MYPE.EQ.0) print *, '* READING FILE: ', TIMERAMP10
+       CALL READCLIM(DUM10,NL,.FALSE.,timerampn10)
+       IF (MYPE.EQ.0) print *, '* READING FILE: ', TIMERAMP11
+       CALL READCLIM(DUM11,NL,.FALSE.,timerampn11)
+       IF (MYPE.EQ.0) print *, '* READING FILE: ', TIMERAMP20
+       CALL READCLIM(DUM20,NL,.FALSE.,timerampn20)
+       IF (MYPE.EQ.0) print *, '* READING FILE: ', TIMERAMP21
+       CALL READCLIM(DUM21,NL,.FALSE.,timerampn21)
+
+       !----------------------------------------------------------------
+       ! Write all the data in UNDGI etc. onto PEs
+       ! uan10/11 and uan20/21 are : uan10(NL,MGx,NHEM,JGy)
+       ! UNDGI2/3 and UNDGJ2/3 are : UNDGI2(NL,MGx,NHEM,JGy)
+       ! Fill UNDG arrays with values from uan arrays ...
+       ! Need to multiply by cos lat and non-dimnesionalise
+       !----------------------------------------------------------------
+        DO IM=1,JGyy(iRow)
+         DO IHEM=1,NHEM
+          DO IN=1,MGxx(iCol)
+           DO L=1,NL
+           UNDGI2(L,IN,IHEM,IM) =
+     &        (uan10(L,IN,IHEM,IM))*
+     &         (CS(JJ1(iRow)+IM,1)/CV)
+    
+           UNDGI3(L,IN,IHEM,IM) =
+     &        (uan11(L,IN,IHEM,IM))*
+     &         (CS(JJ1(iRow)+IM,1)/CV)
+
+           UNDGJ2(L,IN,IHEM,IM) =
+     &        (uan20(L,IN,IHEM,IM))*
+     &         (CS(JJ1(iRow)+IM,1)/CV)
+
+           UNDGJ3(L,IN,IHEM,IM) =
+     &        (uan21(L,IN,IHEM,IM))*
+     &         (CS(JJ1(iRow)+IM,1)/CV)
+
+           VNDGI2(L,IN,IHEM,IM) =
+     &        (van10(L,IN,IHEM,IM))*
+     &         (CS(JJ1(iRow)+IM,1)/CV)
+
+           VNDGI3(L,IN,IHEM,IM) =
+     &        (van11(L,IN,IHEM,IM))*
+     &         (CS(JJ1(iRow)+IM,1)/CV)
+
+           VNDGJ2(L,IN,IHEM,IM) =
+     &        (van20(L,IN,IHEM,IM))*
+     &         (CS(JJ1(iRow)+IM,1)/CV)
+
+           VNDGJ3(L,IN,IHEM,IM) =
+     &        (van21(L,IN,IHEM,IM))*
+     &         (CS(JJ1(iRow)+IM,1)/CV)
+
+
+           TNDGI2(L,IN,IHEM,IM) =
+     &        ((tn10(L,IN,IHEM,IM)
+     &        + 273.15 - 250.0)
+     &         /CT)
+	   
+	   TNDGI3(L,IN,IHEM,IM) =
+     &        tn11(L,IN,IHEM,IM)
+     &         /CT
+          
+           TNDGJ2(L,IN,IHEM,IM) =
+     &        ((tn20(L,IN,IHEM,IM)
+     &        + 273.15 - 250.0)
+     &          /CT)         
+
+ 
+           TNDGJ3(L,IN,IHEM,IM) =
+     &        tn21(L,IN,IHEM,IM)
+     &         /CT
+
+           SPNDGI2(1,IN,IHEM,IM) =
+     &        (spn10(1,IN,IHEM,IM))
+     &         /1.0E5
+
+           SPNDGI3(1,IN,IHEM,IM) =
+     &        spn11(1,IN,IHEM,IM)
+     &         /1.0E5
+
+           SPNDGJ2(1,IN,IHEM,IM) =
+     &        (spn20(1,IN,IHEM,IM))
+     &         /1.0E5
+
+           SPNDGJ3(1,IN,IHEM,IM) =
+     &        spn21(1,IN,IHEM,IM)
+     &         /1.0E5
+
+           DUMNDGI2(L,IN,IHEM,IM) =
+     &        dumn10(L,IN,IHEM,IM)
+           DUMNDGI3(L,IN,IHEM,IM) =
+     &        dumn11(L,IN,IHEM,IM)
+           DUMNDGJ2(L,IN,IHEM,IM) =
+     &        dumn20(L,IN,IHEM,IM)
+           DUMNDGJ3(L,IN,IHEM,IM) =
+     &        dumn21(L,IN,IHEM,IM)
+
+           TIMERAMPNDGI2(L,IN,IHEM,IM) =
+     &        timerampn10(L,IN,IHEM,IM)
+           TIMERAMPNDGI3(L,IN,IHEM,IM) =
+     &        timerampn11(L,IN,IHEM,IM)
+           TIMERAMPNDGJ2(L,IN,IHEM,IM) =
+     &        timerampn20(L,IN,IHEM,IM)
+           TIMERAMPNDGJ3(L,IN,IHEM,IM) =
+     &        timerampn21(L,IN,IHEM,IM)
+
+          ENDDO
+         ENDDO
+       ENDDO
+       ENDDO
+      ENDIF
+
+      END
+
+*/
+*/ ---------------------------------------
+*/ Add READNDG
+*/ Reads in subsequent records for time-
+*/ dependent nudging reference states
+*/ ---------------------------------------
+*/
+*/
+*/ --- Now call READNDG in main program ---
+*/ --- MLTRI and add READNDG subroutine code ---
+*/
+
+*D OUTCON.16
+     &          ,KOUTE,KOUTH,KOUTR,KINND,KINN
+*I OUTCON.41
+      INTEGER :: KINND
+      INTEGER :: KINN
+      REAL :: NDGI 
+      REAL :: NDGJ
+      REAL :: NDGI3
+      REAL :: NDGJ3
+      REAL :: NDFAC
+      REAL :: DUM
+      REAL :: TIMERAMP
+      COMPLEX :: REF,REF0,REFT 
+
+*D OUTCON.7
+     &  ,TOUT2,LSPO,LGPO,NDGI,NDGJ,NDGI3,NDGJ3,UNDGI2,UNDGI3,UNDGJ2,
+     &  UNDGJ3,LNUDGGP,KMX,KMN,TAUND,DNDMAX,SPNUDG,DUMNDGI2,DUMNDGI3,
+     &  DUMNDGJ2,DUMNDGJ3,NDFAC,REF,REF0,DUM,VNDGI2,VNDGI3,VNDGJ2,
+     &  VNDGJ3,TNDGI2,TNDGI3,TNDGJ2,TNDGJ3,SPNDGI2,SPNDGI3,
+     &  SPNDGJ2,SPNDGJ3,DNUDG,REFT,TIMERAMPNDGI2,TIMERAMPNDGI3,
+     &  TIMERAMPNDGJ2,TIMERAMPNDGJ3,TIMERAMP
+
+  
+
+*I MGRMLT.18
+*CALL OUTCON
+*CALL RESTOR
+*CALL BATS
+
+*I MGRMLT.41
+
+!--------------TEST-------------TEST--------
+!-------------------------------------------
+! Calling READNDG to make adjustments to PLG3
+!-------------------------------------------
+!-------------------------------------------
+
+
+            KINN=MOD(KOUNT,ITSPD)
+            IF (KINN.EQ.0) KINN=ITSPD
+!               PRINT *,'KINN=',KINN
+            IF (KINND.GT.0.AND.KINN.EQ.KINND) THEN
+               CALL READNDG
+            ENDIF
+            IF (KINND.GT.0) THEN
+               NDGI=REAL(KINN)/REAL(KINND)
+               NDGI3=(NDGI**3 - NDGI)/6.
+               NDGJ=1.-NDGI
+               NDGJ3=(NDGJ**3 - NDGJ)/6.
+            ENDIF
+
+*I DGRMLT.125
+            !-------------------------------------------------
+            ! Update zonal mean nudging, cubic spline 
+            ! interpolating factors, for time-dependent nudging 
+            ! reference states
+            !-------------------------------------------------
+            
+            KINN=MOD(KOUNT,ITSPD)
+            IF (KINN.EQ.0) KINN=ITSPD 
+!               PRINT *,'KINN=',KINN
+            IF (KINND.GT.0.AND.KINN.EQ.KINND) THEN
+               CALL READNDG
+            ENDIF
+            IF (KINND.GT.0) THEN
+               NDGI=REAL(KINN)/REAL(KINND)
+               NDGI3=(NDGI**3 - NDGI)/6.  
+               NDGJ=1.-NDGI
+               NDGJ3=(NDGJ**3 - NDGJ)/6.
+            ENDIF
+
+
+*DECK READNDG
+!=====================================================
+! Read subsequent record for nudging reference state
+!=====================================================
+      SUBROUTINE READNDG
+      IMPLICIT NONE
+!
+*CALL PARAM1
+*CALL PARAM2
+*CALL PARAM3
+*CALL BLANK
+*CALL MPIDECK
+*CALL BATS
+*CALL RESTOR
+*CALL OUTCON
+*CALL LEGAU
+!-----------------------------------------------------
+! Local variables
+!-----------------------------------------------------
+! End of nudg.bin file error variable
+      INTEGER :: IOS
+! Loop variable
+      INTEGER :: I,II,iCol2,iRow2,L,IHEM,J,iPe,IM,IN
+      INTEGER :: JH
+      INTEGER :: countLHEM,countHEM,countJ
+! MPI variables
+      INTEGER, PARAMETER :: TagRef=10000
+! Nudging variables
+      REAL :: RNT1,RNT2
+      REAL :: DOY1
+      COMPLEX :: UU,VV,UUU,VVV
+      COMPLEX :: AA,BB,CC,SS,RR,TT
+      COMPLEX :: ABC,DEF
+      character*3 :: dy
+      character*31 :: UA20,UA21,DUM20,DUM21
+      character*31 :: TIMERAMP20,TIMERAMP21
+      character*31 :: VA20,VA21,T20,T21,SP20,SP21
+
+      REAL :: uan20(NL,MGx,NHEM,JGy)
+      REAL :: uan21(NL,MGx,NHEM,JGy)
+
+      REAL :: van20(NL,MGx,NHEM,JGy)
+      REAL :: van21(NL,MGx,NHEM,JGy)
+      REAL :: tn20(NL,MGx,NHEM,JGy)
+      REAL :: tn21(NL,MGx,NHEM,JGy)
+      REAL :: spn20(1,MGx,NHEM,JGy)
+      REAL :: spn21(1,MGx,NHEM,JGy)
+
+      REAL :: dumn20(NL,MGx,NHEM,JGy)
+      REAL :: dumn21(NL,MGx,NHEM,JGy)
+
+      REAL :: timerampn20(NL,MGx,NHEM,JGy)
+      REAL :: timerampn21(NL,MGx,NHEM,JGy)
+
+      !-----------------------------------------------------------------
+      ! If a nudging run read in next record and update linear
+      ! interpolation parameter
+      !-----------------------------------------------------------------
+      IF (LNUDGGP) THEN
+        !---------------------------------------------------------------
+        ! Read in on PE 0
+        !---------------------------------------------------------------
+         DOY1=DOY-1
+         WRITE(dy, '(i3)') NINT(DOY1)
+
+         UA20='ua_d'//trim(adjustl(dy))//
+     &			'_0_dims.dat'
+         IF (MYPE.EQ.0) print *, '* READING FILE: ', UA20
+         CALL READCLIM(UA20,NL,.FALSE.,uan20)      
+         UA21='ua_d'//trim(adjustl(dy))//
+     &			'_1_dims.dat'
+         IF (MYPE.EQ.0) print *, '* READING FILE: ', UA21
+         CALL READCLIM(UA21,NL,.FALSE.,uan21)    
+
+         VA20='va_d'//trim(adjustl(dy))//
+     &			'_0_dims.dat'
+         IF (MYPE.EQ.0) print *, '* READING FILE: ', VA20
+         CALL READCLIM(VA20,NL,.FALSE.,van20)      
+         VA21='va_d'//trim(adjustl(dy))//
+     &			'_1_dims.dat'
+         IF (MYPE.EQ.0) print *, '* READING FILE: ', VA21
+         CALL READCLIM(VA21,NL,.FALSE.,van21)    
+
+         T20='temp_d'//trim(adjustl(dy))//
+     &			'_0_dims.dat'
+         IF (MYPE.EQ.0) print *, '* READING FILE: ', T20
+         CALL READCLIM(T20,NL,.FALSE.,tn20)      
+         T21='temp_d'//trim(adjustl(dy))//
+     &			'_1_dims.dat'
+         IF (MYPE.EQ.0) print *, '* READING FILE: ', T21
+         CALL READCLIM(T21,NL,.FALSE.,tn21)    
+
+         SP20='ps_d'//trim(adjustl(dy))//
+     &			'_0_dims.dat'
+         IF (MYPE.EQ.0) print *, '* READING FILE: ', SP20
+         CALL READCLIM(SP20,1,.FALSE.,spn20)      
+         SP21='ps_d'//trim(adjustl(dy))//
+     &			'_1_dims.dat'
+         IF (MYPE.EQ.0) print *, '* READING FILE: ', SP21
+         CALL READCLIM(SP21,1,.FALSE.,spn21)    
+
+         DUM20='dum_d'//trim(adjustl(dy))//
+     &			'_0_dims.dat'
+         IF (MYPE.EQ.0) print *, '* READING FILE: ', DUM20
+         CALL READCLIM(DUM20,NL,.FALSE.,dumn20)      
+         DUM21='dum_d'//trim(adjustl(dy))//
+     &			'_1_dims.dat'
+         IF (MYPE.EQ.0) print *, '* READING FILE: ', DUM21
+         CALL READCLIM(DUM21,NL,.FALSE.,dumn21) 
+
+         TIMERAMP20='timeramp_d'//trim(adjustl(dy))//
+     &                  '_0_dims.dat'
+         IF (MYPE.EQ.0) print *, '* READING FILE: ', TIMERAMP20
+         CALL READCLIM(TIMERAMP20,NL,.FALSE.,timerampn20)      
+         TIMERAMP21='timeramp_d'//trim(adjustl(dy))//
+     &                  '_1_dims.dat'
+         IF (MYPE.EQ.0) print *, '* READING FILE: ', TIMERAMP21
+         CALL READCLIM(TIMERAMP21,NL,.FALSE.,timerampn21)    
+
+   
+        !---------------------------------------------------------------
+        ! Write all the data in ZNDGI etc. onto PEs
+        !---------------------------------------------------------------
+         DO IM=1,JGyy(iRow)
+          DO IHEM=1,NHEM
+           DO IN=1,MGxx(iCol)
+            DO L=1,NL
+                UNDGJ2(L,IN,IHEM,IM) = (uan20(L,IN,IHEM,IM))*
+     &         (CS(JJ1(iRow)+IM,1)/CV)
+
+                UNDGJ3(L,IN,IHEM,IM) = (uan21(L,IN,IHEM,IM))*
+     &         (CS(JJ1(iRow)+IM,1)/CV)
+
+                VNDGJ2(L,IN,IHEM,IM) =
+     &        		(van20(L,IN,IHEM,IM))*
+     &         (CS(JJ1(iRow)+IM,1)/CV)
+
+                VNDGJ3(L,IN,IHEM,IM) =
+     &        		(van21(L,IN,IHEM,IM))*
+     &         (CS(JJ1(iRow)+IM,1)/CV)
+
+                TNDGJ2(L,IN,IHEM,IM) =
+     &        		((tn20(L,IN,IHEM,IM)
+     &        		+ 273.15 - 250.0)
+     &          	/CT)
+
+                TNDGJ3(L,IN,IHEM,IM) =
+     &        		tn21(L,IN,IHEM,IM)
+     &                         /CT
+
+                SPNDGJ2(1,IN,IHEM,IM) =
+     &        		(spn20(1,IN,IHEM,IM))
+     &                          /1.0E5     
+                SPNDGJ3(1,IN,IHEM,IM) =
+     &        		spn21(1,IN,IHEM,IM)
+     &                          /1.0E5
+
+
+                DUMNDGJ2(L,IN,IHEM,IM) = dumn20(L,IN,IHEM,IM)
+                DUMNDGJ3(L,IN,IHEM,IM) = dumn21(L,IN,IHEM,IM)
+
+                TIMERAMPNDGJ2(L,IN,IHEM,IM) = timerampn20(L,IN,IHEM,IM)
+                TIMERAMPNDGJ3(L,IN,IHEM,IM) = timerampn21(L,IN,IHEM,IM)
+
+
+           ENDDO
+          ENDDO
+         ENDDO
+        ENDDO
+        !---------------------------------------------------------------
+        ! Need to swap UNDGI etc and UNDGJ etc arrays
+        ! around so the I's contain the most recent
+        ! record and J's contain the previous record
+        !---------------------------------------------------------------
+         DO IHEM=1,NHEM
+          DO IM=1,JGyy(iRow)
+           DO IN=1,MGxx(iCol)
+            DO L=1,NL
+            UU=UNDGI2(L,IN,IHEM,IM)
+            UNDGI2(L,IN,IHEM,IM)=UNDGJ2(L,IN,IHEM,IM)
+            UNDGJ2(L,IN,IHEM,IM)=UU
+
+            VV=UNDGI3(L,IN,IHEM,IM)
+            UNDGI3(L,IN,IHEM,IM)=UNDGJ3(L,IN,IHEM,IM)
+            UNDGJ3(L,IN,IHEM,IM)=VV
+!
+
+            RR=VNDGI2(L,IN,IHEM,IM)
+            VNDGI2(L,IN,IHEM,IM)=VNDGJ2(L,IN,IHEM,IM)
+            VNDGJ2(L,IN,IHEM,IM)=RR
+
+            SS=VNDGI3(L,IN,IHEM,IM)
+            VNDGI3(L,IN,IHEM,IM)=VNDGJ3(L,IN,IHEM,IM)
+            VNDGJ3(L,IN,IHEM,IM)=SS
+!
+
+            TT=TNDGI2(L,IN,IHEM,IM)
+            TNDGI2(L,IN,IHEM,IM)=TNDGJ2(L,IN,IHEM,IM)
+            TNDGJ2(L,IN,IHEM,IM)=TT
+
+            AA=TNDGI3(L,IN,IHEM,IM)
+            TNDGI3(L,IN,IHEM,IM)=TNDGJ3(L,IN,IHEM,IM)
+            TNDGJ3(L,IN,IHEM,IM)=AA
+!
+
+            BB=SPNDGI2(1,IN,IHEM,IM)
+            SPNDGI2(1,IN,IHEM,IM)=SPNDGJ2(1,IN,IHEM,IM)
+            SPNDGJ2(1,IN,IHEM,IM)=BB
+
+            CC=SPNDGI3(1,IN,IHEM,IM)
+            SPNDGI3(1,IN,IHEM,IM)=SPNDGJ3(1,IN,IHEM,IM)
+            SPNDGJ3(1,IN,IHEM,IM)=CC
+!
+
+            UUU=DUMNDGI3(L,IN,IHEM,IM)
+            DUMNDGI3(L,IN,IHEM,IM)=DUMNDGJ3(L,IN,IHEM,IM)
+            DUMNDGJ3(L,IN,IHEM,IM)=UUU
+
+            VVV=DUMNDGI3(L,IN,IHEM,IM)
+            DUMNDGI3(L,IN,IHEM,IM)=DUMNDGJ3(L,IN,IHEM,IM)
+            DUMNDGJ3(L,IN,IHEM,IM)=VVV
+
+            ABC=TIMERAMPNDGI3(L,IN,IHEM,IM)
+            TIMERAMPNDGI3(L,IN,IHEM,IM)=TIMERAMPNDGJ3(L,IN,IHEM,IM)
+            TIMERAMPNDGJ3(L,IN,IHEM,IM)=ABC
+
+            DEF=TIMERAMPNDGI3(L,IN,IHEM,IM)
+            TIMERAMPNDGI3(L,IN,IHEM,IM)=TIMERAMPNDGJ3(L,IN,IHEM,IM)
+            TIMERAMPNDGJ3(L,IN,IHEM,IM)=DEF
+
+           ENDDO
+          ENDDO
+         ENDDO
+        ENDDO
+      
+      ENDIF
+
+      END
+
+*/
+*/ ---------------------------------------
+*/ Edit DGRMLT to include nudging
+*/ Applies nudging in grid-point space
+*/ ---------------------------------------
+*/
+*/ --- Add required nudging parameters ---
+*/
+*I DGRMLT.176 
+
+      !-----------------------------------------------------------------
+      ! Apply nudging in grid point space
+      ! DOY (Day of year) sets calendar days over which nudging is
+      ! switched on
+      ! DAY.GE. sets nudging to start in first winter (not immediately)
+      !-----------------------------------------------------------------
+      IF (LNUDGGP) THEN
+       IF (DOY.LE.90.OR.DOY.GE.300) THEN
+       IF (DAY.GE.72451) THEN
+       !----------------------------------------------------------------
+       ! Nudging applies across all zonal wavenumbers
+       !----------------------------------------------------------------
+       IF (DAY.GT.DNDMAX.OR.DNDMAX.LE.0.) THEN
+        NDFAC = 1.
+       ELSE IF (DAY.GT.0) THEN
+        NDFAC = SIN(PI*DAY/(2*DNDMAX))**2
+       ELSE
+        NDFAC = 0.
+       END IF
+       !----------------------------------------------------------------
+       ! Loop
+       !----------------------------------------------------------------
+
+         DO L=1,NL
+          DO IHEM=1,NHEM
+            DO I=1,MGxx(iCol) 
+             DUM=NDGI*DUMNDGI2(L,I,IHEM,JH) +
+     &          NDGI3*DUMNDGI3(L,I,IHEM,JH) +
+     &          NDGJ*DUMNDGJ2(L,I,IHEM,JH) +
+     &          NDGJ3*DUMNDGJ3(L,I,IHEM,JH)
+
+             TIMERAMP=NDGI*TIMERAMPNDGI2(L,I,IHEM,JH) +
+     &          NDGI3*TIMERAMPNDGI3(L,I,IHEM,JH) +
+     &          NDGJ*TIMERAMPNDGJ2(L,I,IHEM,JH) +
+     &          NDGJ3*TIMERAMPNDGJ3(L,I,IHEM,JH)
+ 
+             REF=NDGI*UNDGI2(L,I,IHEM,JH) +
+     &          NDGI3*UNDGI3(L,I,IHEM,JH) +
+     &          NDGJ*UNDGJ2(L,I,IHEM,JH) +
+     &          NDGJ3*UNDGJ3(L,I,IHEM,JH)
+
+            FUG3(I,IHEM,JH,L) = FUG3(I,IHEM,JH,L)
+     &          -(NDFAC*DNUDG(L)*TIMERAMP*DUM*(UG3(I,IHEM,JH,L)-REF))
+
+
+             REF=NDGI*VNDGI2(L,I,IHEM,JH) +
+     &          NDGI3*VNDGI3(L,I,IHEM,JH) +
+     &          NDGJ*VNDGJ2(L,I,IHEM,JH) +
+     &          NDGJ3*VNDGJ3(L,I,IHEM,JH)
+
+            FVG3(I,IHEM,JH,L) = FVG3(I,IHEM,JH,L)
+     &          -(NDFAC*DNUDG(L)*TIMERAMP*DUM*(VG3(I,IHEM,JH,L)-REF))
+
+            REFT=NDGI*TNDGI2(L,I,IHEM,JH) +
+     &          NDGI3*TNDGI3(L,I,IHEM,JH) +
+     &          NDGJ*TNDGJ2(L,I,IHEM,JH) +
+     &          NDGJ3*TNDGJ3(L,I,IHEM,JH)
+
+            		
+            TNLG3(I,IHEM,JH,L) = TNLG3(I,IHEM,JH,L)
+     &          -(NDFAC*DNUDG(L)*TIMERAMP*DUM*
+     &			(TG3(I,IHEM,JH,L)-T0(L)-REFT))
+
+
+            ENDDO
+           ENDDO
+          ENDDO
+
+	ENDIF
+	ENDIF
+	ENDIF
+
+*/
+*/ ---------------------------------------
+*/ Edit MGRMLT to include nudging
+*/ Applies nudging to VPG3 grid-point space
+*/ ---------------------------------------
+*/
+*/ --- Add required nudging parameters ---
+*/
+*I MGRMLT.102
+
+      !-----------------------------------------------------------------
+      ! Apply nudging in grid point space
+      ! DOY (Day of year) sets calendar days over which nudging is
+      ! switched on
+      ! DAY.GE. sets nudging to start in first winter (not immediately)
+      !-----------------------------------------------------------------
+      IF (LNUDGGP) THEN
+       IF (DOY.LE.90.OR.DOY.GE.300) THEN
+       IF (DAY.GE.72451) THEN
+       !----------------------------------------------------------------
+       ! Nudging applies across all zonal wavenumbers
+       !----------------------------------------------------------------
+       IF (DAY.GT.DNDMAX.OR.DNDMAX.LE.0.) THEN
+        NDFAC = 1.
+       ELSE IF (DAY.GT.0) THEN
+        NDFAC = SIN(PI*DAY/(2*DNDMAX))**2
+       ELSE
+        NDFAC = 0.
+       END IF
+       !----------------------------------------------------------------
+       ! Loop
+       !----------------------------------------------------------------
+            DO I=1,MGxx(iCol) 
+             DUM=NDGI*DUMNDGI2(NL-1,I,IHEM,J) +
+     &          NDGI3*DUMNDGI3(NL-1,I,IHEM,J) +
+     &          NDGJ*DUMNDGJ2(NL-1,I,IHEM,J) +
+     &          NDGJ3*DUMNDGJ3(NL-1,I,IHEM,J)
+
+             TIMERAMP=NDGI*TIMERAMPNDGI2(NL-1,I,IHEM,J) +
+     &          NDGI3*TIMERAMPNDGI3(NL-1,I,IHEM,J) +
+     &          NDGJ*TIMERAMPNDGJ2(NL-1,I,IHEM,J) +
+     &          NDGJ3*TIMERAMPNDGJ3(NL-1,I,IHEM,J)
+
+             REF=NDGI*SPNDGI2(1,I,IHEM,J) +
+     &          NDGI3*SPNDGI3(1,I,IHEM,J) +
+     &          NDGJ*SPNDGJ2(1,I,IHEM,J) +
+     &          NDGJ3*SPNDGJ3(1,I,IHEM,J)
+
+            VPG3(I,IHEM,J)=VPG3(I,IHEM,J)
+     &          +(NDFAC*SPNUDG*TIMERAMP*DUM*
+     &	     (SPG3(I,IHEM,J)-(REF-1.0)))
+
+    	    ENDDO
+	ENDIF
+	ENDIF
+	ENDIF
+/EOF
+#
+############################################# NAMELIST DATA.
+#
+cat  <<  /EOF  >  $EXPDIR/data.template
+ &INPPL
+ &END
+ &INPRN 
+ DAYS=dummy_NDAYS2RUN,
+ BEGDAY=dummy_BEGDAY,
+ KITS=0,
+ TSPD=72,
+ PNU=0.02,
+ TDISS=0.166666666667,
+ NDEL=6,
+ BEGDOY=0.0,
+ LFLUX=.TRUE.,
+ LSTRETCH=.TRUE.,
+ L22L=.FALSE.,LCLIM=.FALSE.,LPERPET=.FALSE.,LOROG=.TRUE.,
+ LSHORT=.FALSE.,LBALAN=.FALSE.,
+ LRSTRT=dummy_LRSTRT,
+ LRESTIJ=.FALSE.,
+ LNOISE=.FALSE.,
+ LMASCOR=.TRUE.,LMASPRT=.FALSE.,LMASOLD=dummy_LMASOLD
+ &END
+ &INPOP 
+ RNTAPE=1.0,
+ DAYP=10,
+ NCKNTIN=dummy_OUTPUTEVERY,
+ DAYH=dummy_AOUTPUTEVERY,
+ DAYR=dummy_RESTARTEVERY,
+ KOUNTE=1,
+ NLAT=32,
+ NTRACO=1,RNTAPO=1.0
+ &END
+ &INPHYS LBL=.TRUE.,LCR=.TRUE.,LLR=.TRUE.,LCUBM=.TRUE.,LCBADJ=.TRUE., 
+      LRD=.TRUE.,LVD=.TRUE.,LSL=.TRUE.,LOC=.TRUE.,
+      LNOICE=.FALSE.,LOLDBL=.FALSE.,LNNSK=.TRUE.,LCOND=.FALSE.
+ &END
+ &INMORCGAS VMRCO2=285.0E-6,VMRCH4=0.70E-6,VMRN2O=270.0E-9,
+      VMRCFC11=0.0,VMRCFC12=0.0,NEXOTIC=.TRUE.
+ &END
+ &INPRS
+ &END
+ &INPRSIJ
+ &END
+ &INPBL 
+ KBAL=0,LTBAL=.FALSE.,TMEAN=20*250.0
+ &END
+ &INQ LRH=.FALSE., LNSURF=.FALSE.
+ &END
+ &INNUDG LNUDG=.FALSE.,LNUDGGP=.TRUE.,KINND=72,
+      KMX=0.92000,KMN=0.16983,TAUND=6.0
+ &END
+/EOF
+#
+############################################# ERROR PROCESSING FUNCTION.
+#
+ABORT ()
+{
+echo '!!!!!!!!!! ERROR PROCESSING !!!!!!!!!!'
+set +e
+\cp fort.2 $EXPDIR/results_fail
+exit 1
+}
+#
+############################################# COMPILE PROGRAM.
+#
+cd $COMPDIR
+
+if [ $COMPILE = yes ]
+then
+    fc='mpif90'
+    fflags='-i4 -r8 -O3 -xHOST -align -fp-model source  -fpe0 -traceback'
+
+# Spinup
+   $NUPDATE  -p ${ProgLib}  -c igcm4_mpi_spin     \
+            -i updates_spin                    \
+            -f -o sq -s igcm4_mpi.src      ||  ABORT NUPDATE
+    $fc $fflags -c igcm4_mpi_spin.f -I$NETCDFINC -I$MPIINC || ABORT $fc
+
+  # linking bit
+    $fc $fflags -o $EXPDIR/${EXEC}_spin \
+      $OASISCLIMDIR/Clim/*.o \
+      igcm4_mpi_spin.o \
+      -L$KD \
+      -lsun'fft1' -lsun'blas1' -lsun'util1' \
+      -lsun'aux1' \
+      -L$NETCDFLIB -lhdf5 -lhdf5_hl -lcurl -lnetcdff -lnetcdf -L$PVMLIB -lfpvm3 -lgpvm3 -lpvm3\
+      -L$MPILIB -lmpi || ABORT ${FC}
+
+
+# Restart
+   $NUPDATE  -p ${ProgLib}  -c igcm4_mpi_cont     \
+            -i updates_cont                    \
+            -f -o sq -s igcm4_mpi.src      ||  ABORT NUPDATE
+    $fc $fflags -c igcm4_mpi_cont.f -I$NETCDFINC -I$MPIINC || ABORT $fc
+
+  # linking bit
+    $fc $fflags -o $EXPDIR/${EXEC}_cont \
+      $OASISCLIMDIR/Clim/*.o \
+      igcm4_mpi_cont.o \
+      -L$KD \
+      -lsun'fft1' -lsun'blas1' -lsun'util1' \
+      -lsun'aux1' \
+      -L$NETCDFLIB -lhdf5 -lhdf5_hl -lcurl -lnetcdff -lnetcdf -L$PVMLIB -lfpvm3 -lgpvm3 -lpvm3\
+      -L$MPILIB -lmpi || ABORT ${FC}
+
+fi
+
+
+cd $EXPDIR
+echo "Making links:" $PWD
+     [ -r climdata ] && \rm -f climdata/*.dat
+     ln -s $CLIMDIR/*.dat climdata
+     
+     [ -r orogdata ] && \rm -f orogdata
+     ln -s $OROGDIR orogdata
+
+     [ -f input.dat ] && \rm -f input.dat
+     \cp $INIDATA/restart.12 input.dat
+     [ -f RestartSurface.dat ] && \rm -f RestartSurface.dat
+     \cp $INIDATA/restart.17 RestartSurface.dat
+
+     [ -f column.dat ] && \rm -f column.dat
+     [ -f vegetation.dat ] && \rm -f vegetation.dat
+     ln -s $INIDATA/vegetation.260x32.171011 vegetation.dat
+     [ -f flxocean ] && \rm -f flxocean
+     \cp $INIDATA/flxocean flxocean
+     [ -f topog_gwd.dat ] && \rm -f topog_gwd.dat
+     ln -s $INIDATA/topog_gwd.T42.dat topog_gwd.dat
+
+     ln -s $NUDGREF/*.dat climdata
+
+# before running keep a copy of this runscript in the output directory
+      cp $RPATH/source/igcm4/$0 $EXPDIR/
+      cp $COMPDIR/igcm4_mpi_????.f $EXPDIR/
+  exit 0                                      # Successful termination.
+#
+############################################# END OF JOB.
