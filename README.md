@@ -1,6 +1,6 @@
-# FORTE2.0
+# FORTE
 
-FORTE 2.0: a fast, parallel and flexible coupled climate model
+FORTE: a fast, parallel and flexible coupled climate model
 
 Contains:
  - Source code and run scripts 
@@ -20,4 +20,6 @@ To run:
 [![DOI](https://zenodo.org/badge/237035818.svg)](https://zenodo.org/badge/latestdoi/237035818)
 
 
-Description paper in GMD Discussion: https://doi.org/10.5194/gmd-2020-43
+Description paper for FORTE2.0 in GMD Discussion: https://doi.org/10.5194/gmd-2020-43
+
+Description paper for FORTE3.0 in preparation.
