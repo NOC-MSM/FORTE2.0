@@ -4,7 +4,7 @@ OBJS = cdotc.o   icamax.o  isamax.o  scnrm2.o  sgemm.o   sger.o    sgetrf.o  sla
 	$(FC) -c $(F77FLAGS) $*.f
 
 libsgiblas1.a: $(OBJS)
-	ar q ../../lib$(MACH)blas.a $(OBJS)
+	llvm-ar q ../../lib$(MACH)blas.a $(OBJS)
 
 clean:
 	\rm -f $(OBJS) *.a

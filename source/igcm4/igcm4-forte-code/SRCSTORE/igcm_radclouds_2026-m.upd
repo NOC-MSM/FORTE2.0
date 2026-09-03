@@ -1,0 +1,206 @@
+*/ -------------------------------------------------
+*/ IGCM3.2 RADIATION AND CLOUDS UPDATE:
+*/ 1.  SOLAR RADIATION AND OZONE
+*/ 2.  CONVECTION AND CONVECTIVE CLOUD FORMATION
+*/ 3.  LARGE-SCALE, ANVIL AND STRATOCUMULUS CLOUD
+*/ 4.  ALL CLOUDS IN RADIATION
+*/ 5.  SURFACE ENERGY BALANCE CORRECTION
+*/ 6.  PADE COEFFS BUG FIXES
+*/ --------------------------------------------------- 
+*/
+*IDENT RAD_CL_SEBAL
+*/ ---------------------------------------
+*/ 1.  SOLAR RADIATION AND OZONE
+*/ ---------------------------------------
+*D INICON.56
+C Solar constant
+C      SOLC=1376.
+      SOLC=1365.
+*D MORC.190
+C O3 climatology interpolation fix: ps variable
+                     ps=PLG3(I,IHEM,J)*P0
+*D MORC.252
+*I MORC.255
+C O3 climatology interpolation fix: ps variable
+                     ps=PLG3(I,IHEM,J)*P0
+*/ ---------------------------------------
+*/ 2.   CONVECTION AND CONVECTIVE CLOUD FORMATION BIT
+*/ ---------------------------------------
+*D PHYSCA.10
+     &     ,NLCR,NCUTOP,CURHM,AKTC,AKQC,CUBMT,CBADJT,CBADJP,CBENT
+*D PHYSCA.31
+      REAL :: CURHM,AKTC,AKQC,CUBMT,CBADJT,CBADJP,CBENT
+*I Z_CONVEC.46
+      INTEGER :: NCNT
+*I Z_CONVEC.74
+*/ Insert after line
+*/         DO I=1,MGxx(iCol)
+C Over ocean more dry entrainment so timescale for T (not Q) lower
+C Max shallow conv height lower over ocean, consistent with obs
+C No rainout of shallow convection over land
+         IF(NINT(SVEGE(I,IHEM,JH)).eq.1)THEN
+           CURHM=82.5/100.0
+           CBADJT=3.0*3600.0*WW
+           CBENT=0.833333
+           NCNT=0
+           DO L=1,NL
+            IF(SIGMA(L).GE.0.75) NCNT=NCNT+1
+           ENDDO
+          NCUTOP=NL+1-NCNT
+        ELSE
+           CURHM=200.0/100.0
+           CBADJT=2.5*3600.0*WW
+           CBENT=1.0
+           NCNT=0
+           DO L=1,NL
+            IF(SIGMA(L).GE.0.7) NCNT=NCNT+1
+           ENDDO
+          NCUTOP=NL+1-NCNT
+         ENDIF
+*/ Increase deep convective timescale for T only:
+*/ effectively entrains dry air into convection: default is 1.0
+*D CBADJ.180
+            TTEND=(TR(L)-TG3(I,IHEM,JH,L))/(CBADJT*CBENT)
+*/ Bug fix for CTQUSE
+*D CUBM.280
+C            QEX=QEXS/(1.0+CTQ*QS*ESCONB/(TGP*TGP))
+            QEX=QEXS/(1.0+CTQUSE*QS*ESCONB/(TGP*TGP))
+*/ Convective cloud fractions simplified from Slingo (1987)
+*/ Empirical Log (P) dependence introduces -ve cloud feedback
+*/ in climate studies since P increases with Tsurf
+*/ avg CFRAC in column lower in deep precipitating convection
+*D CUBM.135
+C Shallow (CUBM) convective cloud (~cumulus) fraction
+      CFRAC(I,IHEM,4)=0.35
+*D CBADJ.197,198
+C            CFRAC(I,IHEM,5)=(0.245+0.125*LOG(P))
+C            CFRAC(I,IHEM,5)=MIN(1.0,CFRAC(I,IHEM,5))
+             CFRAC(I,IHEM,5)=0.20
+*/ ---------------------------------------
+*/ 3.  LARGE-SCALE, ANVIL AND STRATOCUMULUS CLOUD BIT
+*/ ---------------------------------------
+*/ Large-scale cloud scheme not designed for conditions 
+*/ when convective cloud present and RH > 0.8.
+*/ Do not form stratiform cloud when convective cloud present
+*D DGRMLT.165
+         IF(LLR) CALL LSCRN(JH,CV)
+*D LSCRN.11
+      SUBROUTINE LSCRN(JH,CV)
+*I LSCRN.44
+      REAL :: CONVMULT(NL)
+*I LSCRN.45
+*/ Insert after the line:
+*/      REAL :: SDOTP
+      REAL :: CV, QRAT
+*/ Check for convective cloud
+*B LSCRN.60
+            DO L=1,NL
+              CONVMULT(L)=1.0
+            END DO
+C Check for deep convective cloud
+            IF(CFRAC(I,IHEM,5).GT.1.0E-8)THEN
+              DO L=ICFLAG(I,IHEM,5,2),ICFLAG(I,IHEM,5,1)
+                CONVMULT(L)=0.0
+              END DO
+            ENDIF
+C Check for shallow convective cloud
+            IF(CFRAC(I,IHEM,4).GT.1.0E-8)THEN
+              DO L=ICFLAG(I,IHEM,4,2),ICFLAG(I,IHEM,4,1)
+                CONVMULT(L)=0.0
+              END DO
+            ENDIF
+*D LSCRN.82
+                        CFRAC(I,IHEM,3)=CFR*CONVMULT(L)
+*D LSCRN.92
+                        CFRAC(I,IHEM,2)=CFR*CONVMULT(L)
+*D LSCRN.102
+                        CFRAC(I,IHEM,1)=CFR*CONVMULT(L)
+*/ Marine Sc cloud diagnosis
+*I LSCRN.145
+*/ Insert after the lines:
+*/               TG3(I,IHEM,JH,L)=TG3(I,IHEM,JH,L)+CTQUSE*QEX
+*/            ENDDO
+*/
+C Marine stratocumulus conditions (for cloud in layer NL-1)
+C based on Q gradient in layers NL-1, NL, surface heat flux
+C presence of other cloud in layers NL-1, NL
+C Based on Sc clouds forming in areas with high dQ/dP and breaking up
+C because of sensible and latent heat fluxes.
+
+            IF ((NINT(SVEGE(I,IHEM,JH)).EQ.1).AND.
+     &      (CONVMULT(NL).GT.0.5).AND.
+     &      (CONVMULT(NL-1).GT.0.5).AND.
+     &      (CFRAC(I,IHEM,1).LT.1.0E-5))THEN
+              ICFLAG(I,IHEM,1,1)=NL-1
+              ICFLAG(I,IHEM,1,2)=NL-1
+              QRAT=1.0   ! Check for division by zero at spinup
+              if(TRAG3(I,IHEM,JH,NL-1,1).gt.1.0E-5)
+     &           QRAT=TRAG3(I,IHEM,JH,NL,1)/TRAG3(I,IHEM,JH,NL-1,1)
+              CFRAC(I,IHEM,1)=0.5*(1.0+TANH((QRAT-1.55)/0.1))*
+     &        0.5*(1.0-TANH(((SLBL(I,IHEM,JH)+
+     &                        SHBL(I,IHEM,JH))*CV*P0-190.0)/10.0))
+              IF (CFRAC(I,IHEM,1).lt.1.0E-5) then
+                CFRAC(I,IHEM,1)=0
+              ENDIF
+            ENDIF
+
+*/ ---------------------------------------
+*/ 4.  CLOUDS AND MORCRETTE RADIATION BIT
+*/ ---------------------------------------
+*/
+*/ Cloud in radiation
+*/
+*D ZMORC.307,325
+      IF (NBASE.GT.0.and.ZCC(JL).gt.1.0E-5)THEN
+C convective cld water 100% supersat upto max limiting value
+        DO ITCC=NTOP,NBASE
+C          ZQLWP(JL,ITCC)=ZCC(JL)*MIN(100.0*ZQS(JL,ITCC),1.25E-4)
+          ZQLWP(JL,ITCC)=ZCC(JL)*1.25E-4
+          ZCLC(JL,ITCC)=ZCC(JL)
+        ENDDO
+      ENDIF
+C LARGE SCALE CLOUDS parameterised by smaller supersaturation
+C Tuned for large-scale MORC cloud being in just one layer
+c Max val is in liquid/ice mmr or g/m3
+
+      ZQLWP(JL,ITL)=ZCL(JL)*MIN(ZQLWP(JL,ITL)+0.05*ZQS(JL,ITL),1.25E-4)
+      ZQLWP(JL,ITM)=ZCM(JL)*MIN(ZQLWP(JL,ITM)+0.05*ZQS(JL,ITM),1.25E-4)
+      ZQLWP(JL,ITH)=ZCH(JL)*MIN(ZQLWP(JL,ITH)+0.05*ZQS(JL,ITH),1.25E-4)
+
+      ZCLC(JL,ITL)=ZCLC(JL,ITL)+ZCL(JL)
+      ZCLC(JL,ITM)=ZCLC(JL,ITM)+ZCM(JL)
+      ZCLC(JL,ITH)=ZCLC(JL,ITH)+ZCH(JL)
+
+*D ZMORC.340,342
+C No extra tuning
+C      ZQLWP(JL,JK)=CVMGT(ZQLWP(JL,JK),0.0,LO)/4.0
+       if (ZCLC(JL,JK).le.ZEPCLC) then
+          ZQLWP(JL,JK)=0.0
+       endif
+*/ Cloud output corrected to be same as seen by radiation (MORC.358)
+*D DGRMLT.193
+C               cld(I,IHEM,JH,4)=cfrac(I,IHEM,4)+cfrac(I,IHEM,5)
+               cld(I,IHEM,JH,4)=max(cfrac(I,IHEM,4),cfrac(I,IHEM,5))
+*/
+*/ ---------------------------------------
+*/ 5.  SURFACE ENERGY BALANCE CORRECTION BIT
+*/ ---------------------------------------
+*/
+*/ Removed
+*/
+*/ ---------------------------------------
+*/ 6.  BUG FIXES
+*/ ---------------------------------------
+*D SULW.883
+C      DATA (GA(10,11,JC),JC=1,3) /
+      DATA (GA(11,11,JC),JC=1,3) /
+*D SULW.885
+C      DATA (GB(10,11,JC),JC=1,3) /
+      DATA (GB(11,11,JC),JC=1,3) /
+*D SULW.887
+C      DATA (GA(10,12,JC),JC=1,3) /
+      DATA (GA(11,12,JC),JC=1,3) /
+*D SULW.889
+C      DATA (GB(10,12,JC),JC=1,3) /
+      DATA (GB(11,12,JC),JC=1,3) /
+*/

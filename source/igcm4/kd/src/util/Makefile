@@ -4,7 +4,7 @@ OBJS =gwtlt.o   hessen.o  qreig.o   qrt.o     ranf.o
 	$(FC) -c $(F77FLAGS) $*.f
 
 libsgiutil1.a: $(OBJS)
-	ar q ../../lib$(MACH)util.a $(OBJS)
+	llvm-ar q ../../lib$(MACH)util.a $(OBJS)
 
 clean:
 	\rm -f $(OBJS) *.a

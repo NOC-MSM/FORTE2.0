@@ -5,7 +5,7 @@ OBJS = fax.o fft991.o fftrig.o qpassm.o rpassm.o set99.o
 
 
 libsgiblas1.a: $(OBJS)
-	ar q ../../lib$(MACH)fft.a $(OBJS)
+	llvm-ar q ../../lib$(MACH)fft.a $(OBJS)
 
 clean:
 	\rm -f $(OBJS) *.a
