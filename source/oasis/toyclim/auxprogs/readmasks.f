@@ -30,7 +30,8 @@ C
          INTEGER runoff,iareanum,ilando(180,88),ilando2(180,88)
 
 
-      open(1,file="ocean.kmtc.arctic_ridge_dp_ds")
+c      open(1,file="ocean.kmtc.arctic_ridge_dp_ds")
+      open(1,file="ocean.kmtc.arctic_dp_ds")
       read(1,*)
       do j=88,1,-1
       read(1,"(1x,100i3)")(ilando(i,j),i=1,180)
@@ -117,7 +118,8 @@ C
       do j=88,1,-1
       write(6,"(180i1)")(ilando(i,j),i=1,180)
       end do
-      open(1,file="ocean.kmtc.arctic_ridge_dp_ds_mk2")
+c      open(1,file="ocean.kmtc.arctic_ridge_dp_ds_mk2")
+      open(1,file="ocean.kmtc.arctic_dp_ds_mk2")
       write(1,"(a16,i3,8x,i2,8x,i2)") "kmt            ",180,88,15
       do j=88,1,-1
       write(1,"(1x,100i3)")(ilando2(i,j),i=1,180)

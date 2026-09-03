@@ -5,7 +5,7 @@
  
 # Script to submit to compile the coupler using the CLIM communication technique
 
-FORTEDIR=/insert/path/to/FORTE2
+FORTEDIR=/insert/path/to/FORTE3
 HOMEOA=$FORTEDIR/source/oasis
 HOMETOY=$HOMEOA/toyclim
 DIRWORK=$HOMETOY/wkdir.basic
@@ -17,10 +17,19 @@ DIRWORK=$HOMETOY/wkdir.basic
 
 ## Change to HPC
 
-       FC="ifort -fpe0 -fpp -O0 -mp1 -align -auto -r8 -i4";
-       F90="ifort -fpe0 -fpp -O0 -mp1 -align -auto -r8 -i4";
+#      FC="ifort -fpe0 -fpp -O0 -mp1 -align -auto -r8 -i4";
+#      F90="ifort -fpe0 -fpp -O0 -mp1 -align -auto -r8 -i4";
 
-       CC="icc -ip";
+#      CC="icc -ip";
+
+
+# Change to ifx compiler
+
+        FC="ifx -fpe0 -fpp -O3 -static -align -auto -r8 -i4";
+        F90="ifx -fpe0 -fpp -O3 -static -align -auto -r8 -i4";
+
+        CC="icx";
+
 
 	F77=${FC} ;
 
@@ -28,12 +37,13 @@ DIRWORK=$HOMETOY/wkdir.basic
         PVM_ROOT=$FORTEDIR/source/pvm3
         PVM_ARCH=LINUX64
 
-	PVMLIB="-L${PVM_ROOT}/lib/${PVM_ARCH} -lfpvm3 -lgpvm3 -lpvm3" ;
+#	PVMLIB="-L${PVM_ROOT}/lib/${PVM_ARCH} -lfpvm3 -lgpvm3 -lpvm3" ;
+	PVMLIB="-L${PVM_ROOT}/lib/${PVM_ARCH} -lfpvm3 -lgpvm3 -lpvm3 -ltirpc" ;
 	PVMINCLUDE=${PVM_ROOT}/include/fpvm3.h ;
 	OPTSF90="" ;
 	OPTSF77=${OPTSF90} ;
 	OPTSLDR=${OPTSF90} ;
-	AR=xiar;
+	AR=llvm-ar;
         ARFLAGS=rv;
 	ASSCOM="echo ";
 	PATH="$PATH:${PVM_ROOT}/lib/${PVM_ARCH}:${PVM_ROOT}/bin/${PVM_ARCH}" ;
