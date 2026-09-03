@@ -15,10 +15,15 @@
 # -CU = Check for uninitialised variables
 # -w95 = suppress warnings about non standard fortran 95
 #
-FC  =  ifort -fpe0 -fpp -O3 -ipo -mp1 -qopenmp -r8 -i4
+#FC  =  ifort -fpe0 -fpp -O3 -ipo -mp1 -qopenmp -r8 -i4
+#CC = icc -ip -openmp
+#LDR = ifort -fpe0 -fpp -O3 -ipo -mp1 -qopenmp -r8 -i4
+#FCFAST = ifort -fpe0 -fpp -O3 -ipo -mp1 -align -qopenmp -r8 -i4
+
 CC = icc -ip -openmp
-LDR = ifort -fpe0 -fpp -O3 -ipo -mp1 -qopenmp -r8 -i4
-FCFAST = ifort -fpe0 -fpp -O3 -ipo -mp1 -align -qopenmp -r8 -i4
+FC  = mpifort -fpe0 -fpp -O3 -ipo -qopenmp -r8 -i4
+LDR = mpifort -fpe0 -fpp -O3 -ipo -qopenmp -r8 -i4
+FCFAST = mpifort -fpe0 -fpp -O3 -ipo -align -qopenmp -r8 -i4
 
 #This is the version compatible with netcdf	
 HDF_ROOT = $(HDF5_DIR)
@@ -34,7 +39,7 @@ PVM_ARCH=LINUX64
 PVM_INC_DIR = $(PVM_ROOT)/include/$(PVM_ARCH)
 PVM_LIB_DIR = $(PVM_ROOT)/lib/$(PVM_ARCH)
 
-SYSLIBS = -Vaxlib
+#SYSLIBS = -Vaxlib
 
 #DOPTNS =  -Daverage -Dcyclic -Dde_checkbd -Dde_checkbd_T -Dflux_write -Dgent_mcwilliams -Dgm_diag -Dfull_griffies -Dhalo2 -Disopycmix -Dmsq -Dnetcdf -DNONLIN_FREE_SURFACE -DREAL_8 -Doasis -Dw_write -Doasis_infl -Dc_write -Dnflux_write -Drho_is_write -Dtendency_write -Dcmip_flx -Dperturbation -Dcmip_flxrd
 #DOPTNS =  -Daverage -Dcyclic -Dde_checkbd -Dde_checkbd_T -Dflux_write -Dgent_mcwilliams -Dgm_diag -Dfull_griffies -Dhalo2 -Disopycmix -Dmsq -Dnetcdf -DNONLIN_FREE_SURFACE -DREAL_8 -Doasis -Doasis_infl -Dw_write -Dcmip_flx -Dsst_wr
@@ -42,7 +47,8 @@ DOPTNS =  -Daverage -Dcyclic -Dde_checkbd -Dde_checkbd_T -Dflux_write -Dgent_mcw
 #DOPTNS =  -Daverage -Dcyclic -Dde_checkbd -Dde_checkbd_T -Dflux_write -Dgent_mcwilliams -Dgm_diag -Dfull_griffies -Dhalo2 -Disopycmix -Dmsq -Dnetcdf -DNONLIN_FREE_SURFACE -DREAL_8 -Dzero_fluxes
 
 #LIBS =           -lnetcdf -lhdf5_hl -lhdf5 -loasis -lfpvm3 -lgpvm3 -lpvm3
-LIBS =  -lnetcdff -lnetcdf -lhdf5_hl -lhdf5 -loasis -lfpvm3 -lgpvm3 -lpvm3
+#LIBS =  -lnetcdff -lnetcdf -lhdf5_hl -lhdf5 -loasis -lfpvm3 -lgpvm3 -lpvm3
+LIBS =  -lnetcdff -lnetcdf -lhdf5_hl -lhdf5 -loasis -lfpvm3 -lgpvm3 -lpvm3 -ltirpc
 ADD_FS =  average.F invtri.F  isopyc.F netcdf_moma.F
 
 #Makefile - main section

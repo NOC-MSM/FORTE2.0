@@ -17,10 +17,16 @@
 # -w95 = suppress warnings about non standard fortran 95
 #
 
-FC  = ifort -qopenmp -fpe0 -fpp -O3 -ip -mp1 -align -auto -r8 -i4
-CC = icc -ipo
-LDR = ifort -fpe0 -fpp -O3 -ipo -mp1 -align -auto -r8 -i4
-FCFAST = ifort -qopenmp -fpe0 -fpp -O3 -ip -mp1 -align -auto -r8 -i4
+#FC  = ifort -qopenmp -fpe0 -fpp -O3 -ip -mp1 -align -auto -r8 -i4
+#CC = icc -ipo
+#LDR = ifort -fpe0 -fpp -O3 -ipo -mp1 -align -auto -r8 -i4
+#FCFAST = ifort -qopenmp -fpe0 -fpp -O3 -ip -mp1 -align -auto -r8 -i4
+
+FC  = ifx -qopenmp -fpe0 -fpp -O3 -static -align -auto -r8 -i4
+CC = icx
+LDR = ifx -qopenmp -fpe0 -fpp -O3 -static -align -auto -r8 -i4
+FCFAST = ifx -qopenmp -fpe0 -fpp -O3 -static -align -auto -r8 -i4
+
 
 #This is the version compatible with netcdf	
 HDF_ROOT = $(HDF5_DIR)
@@ -69,7 +75,8 @@ OFILES = $(FFILES:.F=.o) $(CFILES:.c=.o)
 	$(CC) -c $(CFILES)
 
 liboasis.a :  $(OFILES)
-	xiar q  liboasis.a $(OFILES)
+#	xiar q  liboasis.a $(OFILES)
+        llvm-ar q  liboasis.a $(OFILES)
 
 clean :	
 	rm -f *.o *.a
