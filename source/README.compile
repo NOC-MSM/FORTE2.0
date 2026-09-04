@@ -37,6 +37,10 @@ Enter pvm3
 make clean
 make
 
+Note: for ifx/icx (as currently used on the UEA HPC) compilation this make is required 
+make CC="icx -std=gnu90 -ltirpc" # icx errors without -std=gnu90 and tirpc lib need to be specified
+
+
 ===OASIS===
 Steps 0-3 build the programs to create the weights and masks etc. files. These should only be needed if:
  - changing bathymetry/land mask/grid/topography

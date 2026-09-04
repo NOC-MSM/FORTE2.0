@@ -60,7 +60,7 @@ cat  <<  /EOF  >  updates
 *READ ${SRCSTORE}/forte/T42-runoff-real_snow_ice-m.upd
 *READ ${SRCSTORE}/forte/T42-av-accumulate-tile-m.upd
 *READ ${SRCSTORE}/morcrette3_1_1_swv-m.upd
-*READ ${SRCSTORE}/igcm_radclouds_2026-m2.upd
+*READ ${SRCSTORE}/igcm_radclouds_2026-m.upd
 *READ ${SRCSTORE}/forte/T42L35_gravd2012-forte-m.upd
 *READ ${SRCSTORE}/forte/T42L35-forte-m.upd
 *READ ${SRCSTORE}/forte3/surfacetype2026-forte-m.upd

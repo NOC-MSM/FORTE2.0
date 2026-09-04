@@ -21,6 +21,6 @@ if ( -e $DIR ) then
 endif
 
 mkdir $DIR
-/bin/cp makefile levisalt.dat levitemp.dat ocean.in.template  ocean.kmtc.arctic_ridge_dp_ds sstatmos moma $DIR
+/bin/cp makefile levisalt.dat levitemp.dat ocean.in.template  ocean.kmtc.arctic_dp_ds sstatmos moma $DIR
 
 exit
