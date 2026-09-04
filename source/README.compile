@@ -50,7 +50,8 @@ Note: if you skip steps 0-3 and find you are getting obscure errors at runtime f
       this point and repeat the build process from here. 
 
 0) Enter oasis/toyclim/auxprogs
-1) ifort -r8 progs/*.f
+1) ifx -r8 progs/*.f
+   (where ifx may be set to ifort/gcc as appropriate with your own compiler)
 2) Ensure that your t42.59 file is in the current directory and then run a.out
    Output files (flxatmos, sstocean, masks, grids, areas, at31topa, ofrac.igcm3) are found in OUTPUT
 3) Copy the output files as follows:-
@@ -84,7 +85,7 @@ Note: if you skip steps 0-3 and find you are getting obscure errors at runtime f
    ***      If the executable does not work it is better to use either the source or executable available here: http://www.met.reading.ac.uk/~jeff/nupdate/nupdate.html
 3) Edit CREATE.basic.mpi.* to change RPATH and compiler/compile flags as necessary
 4) ./CREATE.basic.mpi <runname>
-   (Other CREATE.basic.mpi exist; e.g. .mjaer for aerosol runs)
+   (Other CREATE.basic.mpi exist; use the one approriate for your experiment)
 
 
 ===Running model===
